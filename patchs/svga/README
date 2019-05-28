@@ -1,0 +1,32 @@
+SVGA-mode patches to Linux kernel.
+
+This patch will enable you to use all the alphanumeric modes supported by
+your SVGA-card. It will do so by showing the modes available at boottime
+and there you may select one of the modes or just boot as normal. If you
+select a SVGA-mode the setup-routine will automatically inform main-init
+of which resolution is chosen and set the TERM env. variable accordingly
+in the shell. Therefore you must remove the entry in .profile that sets
+TERM. Also you must include all the different termcap-entries from the file
+termcap.add that your card supports, or why not include them all to spare
+the time of sorting them :-)
+
+These patches are applied to the appropriate files, and then the entrys
+corresponding to your adapter in the contained termcap file must be added
+to your termcap file. If you don't know what adapter you have, recompile the
+kernel and look if the code can recognize your adapter, if it does it will
+show (when asked to) the different modes available with the present adaper.
+
+/Mats Andersson (internet: d88-man@nada.kth.se)
+
+files included:
+
+README		This one ...
+console.c.diff	Diff-file for /linux/kernel/chr_drv/console.c
+main.c.diff	Diff-file for /linux/init/main.c
+setup.s.diff	Diff-file for /linux/boot/setup.s
+termcap.add	Additional termcap-entries needed
+
+To apply the diffs just copy the diff-file to the right directory
+and type for example: patch < main.c.diff <CR>
+
+

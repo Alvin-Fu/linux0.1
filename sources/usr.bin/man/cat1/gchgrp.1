@@ -1,0 +1,66 @@
+
+
+
+GCHGRP(1L)        MISC. REFERENCE MANUAL PAGES         GCHGRP(1L)
+
+
+
+NAME
+     chgrp - change the group ownership of files
+
+SYNOPSIS
+     chgrp [-LRcfv] [+recursive]  [+show-changes]  [+dereference]
+     [+silent] [+quiet] [+verbose] group file...
+
+DESCRIPTION
+     This manual page documents the GNU version of chgrp.   chgrp
+     changes  the group ownership of each given file to the named
+     group, which can be either a group name or a  numeric  group
+     ID.
+
+  OPTIONS
+     -_c, +_s_h_o_w-_c_h_a_n_g_e_s
+          Verbosely describe only files whose ownership  actually
+          changes.
+
+     -_f, +_s_i_l_e_n_t, +_q_u_i_e_t
+          Do not print error messages about files whose ownership
+          cannot be changed.
+
+     -_v, +_v_e_r_b_o_s_e
+          Verbosely describe ownership changes.
+
+     -_L, +_d_e_r_e_f_e_r_e_n_c_e
+          Dereference symbolic links (recursively change the own-
+          ership of directories pointed to by symbolic links).
+
+     -_R, +_r_e_c_u_r_s_i_v_e
+          Recursively change ownership of directories.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

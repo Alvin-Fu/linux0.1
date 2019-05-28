@@ -1,0 +1,10 @@
+
+
+I have slightly changed these sources to port this to linux.
+Almost all changes is done in defines.h file. The default editor
+is also changed from vi to emacs. If you have anything to ask,
+please contact me by e-mail.
+
+Kimmo Hakkarainen 
+e-mail: h108373@cc.tut.fi
+

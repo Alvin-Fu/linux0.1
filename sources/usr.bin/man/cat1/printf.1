@@ -1,0 +1,66 @@
+
+
+
+PRINTF(1L)        MISC. REFERENCE MANUAL PAGES         PRINTF(1L)
+
+
+
+NAME
+     printf - format and print data
+
+SYNOPSIS
+     printf format [argument...]
+
+DESCRIPTION
+     This manual  page  documents  the  GNU  version  of  printf.
+     printf prints the _f_o_r_m_a_t string, interpreting `%' directives
+     and `\' escapes in the same way as the C `printf'  function.
+     It  interprets `\0ooo' as a an octal number (`ooo' is 0 to 3
+     digits) specifying a character to print, and  `\xhhh'  as  a
+     hexadecimal  number  (`hhh'  is  1 to 3 digits) specifying a
+     character to print.  It  has  an  additional  escape,  `\c',
+     which  causes  printf  to  produce no further output, and an
+     additional directive, `%b', which prints its argument string
+     with  `\' escapes interpreted the way they are in the _f_o_r_m_a_t
+     string.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

@@ -1,0 +1,64 @@
+basename (1L)		- strip directory and suffix from filenames
+bash (1)		- GNU Bourne-Again SHell
+bison (1)		- GNU Project parser generator (yacc replacement)
+chgrp (1L)		- change the group ownership of files
+chmod (1L)		- change the access permissions of files
+chown (1L)		- change the user and group ownership of files
+ci (1)			- check in RCS revisions
+co (1)			- check out RCS revisions
+compress, uncompress, zcat  (1) -  compress and uncompress files
+cp (1L)			- copy files
+date (1L)		- print or set the system date and time
+dd (1L)			- convert a file while copying it
+df (1L)			- summarize free disk space
+dirname (1L)		- strip filename suffix from pathname
+du (1L)			- summarize disk usage
+env (1L)		- run a program in a modified environment
+expr (1L)		- evaluate expressions
+find (1L)		- search for files in a directory hierarchy
+gawk (1)		- pattern scanning and processing language
+gcc (1)			- GNU project C Compiler
+groups (1L)		- print the groups a user is in
+id (1L)			- print real and effective UIDs and GIDs
+ident (1)		- identify files
+install (1L)		- copy files and set their attributes
+ln (1L)			- make links between files
+locate (1L)		- list files in a database that match a pattern
+logname (1L)		- print user's login name
+ls, dir, vdir (1L)	- list contents of directories
+make (1L)		- GNU make utility to maintain groups of programs
+man (1)			- find & format online manuals
+merge (1)		- three-way file merge
+mkdir (1L)		- make directories
+mkfifo (1L)		- make FIFOs (named pipes)
+mknod (1L)		- make special files
+mv (1L)			- rename files
+nice (1L)		- run a program with modified scheduling priority
+nohup (1L)		- run a command immume to hangups, with output to a non-tty
+patch (1)		- a program for applying a diff file to an original
+pathchk (1L)		- check whether pathnames are valid or portable
+printenv (1L)		- print all or part of environment
+printf (1L)		- format and print data
+rcs (1)			- change RCS file attributes
+rcsclean (1)		- clean up working files
+rcsdiff (1)		- compare RCS revisions
+rcsfile (5)		- format of RCS file
+rcsfreeze (1)		- freeze a configuration of sources checked in under RCS
+rcsintro (1)		- introduction to RCS commands
+rcsmerge (1)		- merge RCS revisions
+rlog (1)		- print log messages and other information about RCS files
+rm (1L)			- remove files
+rmdir (1L)		- remove empty directories
+sleep (1L)		- delay for a specified amount of time
+stty (1L)		- change and print terminal line settings
+tee (1L)		- read from standard input and write to standard output and files
+test (1L)		- check file types and compare values
+touch (1L)		- change file timestamps
+tty (1L)		- print the path of the terminal connected to standard input
+uname (1L)		- print system information
+whatis (5)		- list the available online manuals
+whoami (1L)		- print effective userid
+xargs (1L)		- build and execute command lines from standard input
+yes (1L)		- output a string repeatedly until killed
+zmore (1)		- file perusal filter for crt viewing of compressed text
+zmore (1)		- file perusal filter for crt viewing of compressed text

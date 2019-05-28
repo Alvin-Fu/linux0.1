@@ -1,0 +1,24 @@
+As of Jan. 2, 1992:
+Files used to implement lp support:
+
+Status	New/Changed	Filename
+mod	c		linux/kernel/chr_drv/Makefile
+exp	n		linux/kernel/chr_drv/lp.c
+not	n		linux/kernel/chr_drv/lp_ioctl.c
+mod	c		linux/fs/char_dev.c
+done	n		/dev/lp[0-2] ( c 6,0 - 6,2 )
+
+Implementation:
+Raw device only.
+Only single print device tested, but code is designed to handle lp0 - lp2.
+Returns out-of-paper as ENOSPC.
+Returns offline as EFAULT.
+Process-locked returns EBUSY.
+
+Bugs:
+No ioctl yet.
+Process locking is fooled by pipes more than 1 indirection deep.
+(This is so the printer will be locked by the lpd daemon automagically.)
+Shell does not return errors, but keeps retrying.
+
+jrw[v5068u@vm.temple.edu]

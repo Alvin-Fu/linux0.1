@@ -1,0 +1,132 @@
+
+
+
+EXPR(1L)          MISC. REFERENCE MANUAL PAGES           EXPR(1L)
+
+
+
+NAME
+     expr - evaluate expressions
+
+SYNOPSIS
+     expr expression...
+
+DESCRIPTION
+     This manual page documents the GNU version  of  expr.   expr
+     evaluates  an  expression and writes the result on its stan-
+     dard output.   Each  token  of  the  expression  must  be  a
+     separate  argument.  Operands are either numbers or strings.
+     Strings are not quoted for expr,  though  you  may  need  to
+     quote  them  to  protect  them from the shell.  expr coerces
+     anything appearing in an operand position to an integer or a
+     string depending on the operation being applied to it.
+
+     The operators (in order of increasing precedence) are:
+
+     |    yields its first argument if it is neither null nor  0,
+          otherwise  its second argument.  This is the usual `or'
+          operation.
+
+     &    yields its first argument if neither argument  is  null
+          or 0, otherwise 0.
+
+     < <= = != >= >
+          compare their arguments and return `1' if the  relation
+          is  true, 0 otherwise.  expr tries to coerce both argu-
+          ments to numbers and do a  numeric  comparison;  if  it
+          fails  when  trying  to  coerce either argument it then
+          does a lexicographic comparison.
+
+     + -  perform  arithmetic  operations.   Both  arguments  are
+          coerced  to  numbers; an error occurs if this cannot be
+          done.
+
+     * / %
+          perform arithmetic operations  (`%'  is  the  remainder
+          operation,  as  in  C).   Both arguments are coerced to
+          numbers; an error occurs if this cannot be done.
+
+     :    performs pattern matching.  Its arguments  are  coerced
+          to  strings  and  the  second one is considered to be a
+          regular expression, with a `^' implicitly added at  the
+          beginning.   The first argument is then matched against
+          this regular expression.  If  the  match  succeeds  and
+          part  of  the string is enclosed in `\(' and `\)', that
+          part is the value of the  :  expression;  otherwise  an
+          integer whose value is the number of characters matched
+          is returned.   If  the  match  fails,  the  :  operator
+          returns the null string if `\(' and `\)' are used, oth-
+          erwise 0.  Only one `\(' and `\)' pair can be used.
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+
+
+
+
+EXPR(1L)          MISC. REFERENCE MANUAL PAGES           EXPR(1L)
+
+
+
+     Parentheses are used for grouping in the usual manner.
+
+     Examples:
+
+     To add 1 to the shell variable _a:
+
+          a=`expr $a + 1`
+
+     To find the filename part of the pathname stored in variable
+     _a, which may or may not contain `/':
+
+          expr $a : '.*/\(.*\)' '|' $a
+
+     Note the quoted shell metacharacters.
+
+     expr returns the following exit status:
+
+     0 if the expression is neither null nor 0,
+     1 if the expression is null or 0,
+     2 for invalid expressions.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          2
+
+
+

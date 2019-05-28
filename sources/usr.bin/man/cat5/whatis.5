@@ -1,0 +1,66 @@
+
+
+
+whatis(5)                 FILE FORMATS                  whatis(5)
+
+
+
+NAME
+     whatis - list the available online manuals
+
+SYNTAX
+     /usr/man/whatis
+
+DESCRIPTION
+     Whatis contains a list of all the available  online  manuals
+     in  the  manual  directory, and which section each manual is
+     in. Each line in the file contains
+
+     + the name(s) of the manual
+
+     + the section it is in [in parentheses]
+
+     + a minus sign
+
+     + a short description about the manual
+
+     Each manual name must contain no  whitespace,  and  have  no
+     leading  whitespace.   These names must be separated by whi-
+     tespace, commas, or both.   The  section  consists  of  open
+     parenthesis,  single  digit  (plus optional single uppercase
+     letter - to indicate subtype),  close  parenthesis,  and  is
+     separated  from the name and description by whitespace.  The
+     minus sign is used by _m_a_n(_1) and  thus  is  necessary!   The
+     description  of  the manual is ignored, and can be anything.
+     It may be multi-line, in  which  case  the  following  lines
+     should be indented, and must not contain lone minus signs.
+
+EXAMPLE
+     whatis (5) - the entry for this manual
+
+     man (1) - an entry for the manual program
+
+     man (7) - an entry for the manual macros
+
+     less (1L) - the less pager, which is not standard
+
+for the
+     string, strchr, strlen, strcat, strcpy (3)   -
+              various C routines
+             handling of strings.  These  are  all  kept  in  the
+             _s_t_r_i_n_g._3 file in /_u_s_r/_m_a_n/_m_a_n_3 or /_u_s_r/_m_a_n/_c_a_t_3
+
+SEE ALSO
+     man(1), nroff(1)
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

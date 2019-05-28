@@ -1,0 +1,2144 @@
+*** kernel/chr_drv/console.c.orig	Tue Dec 10 00:53:28 1991
+--- kernel/chr_drv/console.c	Fri Dec 27 18:07:37 1991
+***************
+*** 29,36 ****
+--- 29,38 ----
+  
+  #include <linux/sched.h>
+  #include <linux/tty.h>
++ #include <linux/config.h>
+  #include <asm/io.h>
+  #include <asm/system.h>
++ #include <string.h>
+  
+  /*
+   * These are set up by the setup-routine at boot-time:
+***************
+*** 41,47 ****
+--- 43,53 ----
+  #define ORIG_VIDEO_PAGE		(*(unsigned short *)0x90004)
+  #define ORIG_VIDEO_MODE		((*(unsigned short *)0x90006) & 0xff)
+  #define ORIG_VIDEO_COLS 	(((*(unsigned short *)0x90006) & 0xff00) >> 8)
++ #ifdef VIDEO_VGA_50_LINES
++ #define ORIG_VIDEO_LINES	(50)
++ #else
+  #define ORIG_VIDEO_LINES	(25)
++ #endif
+  #define ORIG_VIDEO_EGA_AX	(*(unsigned short *)0x90008)
+  #define ORIG_VIDEO_EGA_BX	(*(unsigned short *)0x9000a)
+  #define ORIG_VIDEO_EGA_CX	(*(unsigned short *)0x9000c)
+***************
+*** 57,80 ****
+  
+  static unsigned char	video_type;		/* Type of display being used	*/
+  static unsigned long	video_num_columns;	/* Number of text columns	*/
+  static unsigned long	video_size_row;		/* Bytes per row		*/
+  static unsigned long	video_num_lines;	/* Number of test lines		*/
+  static unsigned char	video_page;		/* Initial video page		*/
+- static unsigned long	video_mem_start;	/* Start of video RAM		*/
+- static unsigned long	video_mem_end;		/* End of video RAM (sort of)	*/
+  static unsigned short	video_port_reg;		/* Video register select port	*/
+  static unsigned short	video_port_val;		/* Video register value port	*/
+! static unsigned short	video_erase_char;	/* Char+Attrib to erase with	*/
+  
+! static unsigned long	origin;		/* Used for EGA/VGA fast scroll	*/
+! static unsigned long	scr_end;	/* Used for EGA/VGA fast scroll	*/
+! static unsigned long	pos;
+! static unsigned long	x,y;
+! static unsigned long	top,bottom;
+! static unsigned long	state=0;
+! static unsigned long	npar,par[NPAR];
+! static unsigned long	ques=0;
+! static unsigned char	attr=0x07;
+  
+  static void sysbeep(void);
+  
+--- 63,130 ----
+  
+  static unsigned char	video_type;		/* Type of display being used	*/
+  static unsigned long	video_num_columns;	/* Number of text columns	*/
++ static unsigned long	video_mem_base;		/* Base of video memory */
++ static unsigned long	video_mem_term;		/* End of video memory */
+  static unsigned long	video_size_row;		/* Bytes per row		*/
+  static unsigned long	video_num_lines;	/* Number of test lines		*/
+  static unsigned char	video_page;		/* Initial video page		*/
+  static unsigned short	video_port_reg;		/* Video register select port	*/
+  static unsigned short	video_port_val;		/* Video register value port	*/
+! static int candocolor = 0;
+  
+! #define MAX_SCR_COLS 80
+! #define MAX_SCR_ROWS  ORIG_VIDEO_LINES
+! #define SCR_CHARS (MAX_SCR_ROWS * MAX_SCR_COLS)
+! #define SCR_SIZE (video_size_row*video_num_lines)
+! static struct {
+!   unsigned char	vc_attr;
+!   unsigned char	vc_def_attr;
+!   unsigned long	vc_ques;
+!   unsigned long	vc_state;
+!   unsigned long	vc_restate;
+!   unsigned long	vc_checkin;
+!   unsigned long	vc_origin;		/* Used for EGA/VGA fast scroll	*/
+!   unsigned long	vc_scr_end;	/* Used for EGA/VGA fast scroll	*/
+!   unsigned long	vc_pos;
+!   unsigned long	vc_x,vc_y;
+!   unsigned long	vc_top,vc_bottom;
+!   unsigned long	vc_npar,vc_par[NPAR];
+!   unsigned long	vc_video_mem_start;	/* Start of video RAM		*/
+!   unsigned long	vc_video_mem_end;		/* End of video RAM (sort of)	*/
+!   unsigned vc_saved_x;
+!   unsigned vc_saved_y;
+!   unsigned short	vc_video_erase_char;	
+!   int vc_iscolor;
+! } vc_cons [NR_CONSOLES];
+! static struct {
+!   unsigned short screen[SCR_CHARS];
+! } vc_scrbuf[NR_CONSOLES];
+! 
+! #define origin	(vc_cons[currcons].vc_origin)
+! #define scr_end	(vc_cons[currcons].vc_scr_end)
+! #define pos	(vc_cons[currcons].vc_pos)
+! #define top	(vc_cons[currcons].vc_top)
+! #define bottom	(vc_cons[currcons].vc_bottom)
+! #define x	(vc_cons[currcons].vc_x)
+! #define y	(vc_cons[currcons].vc_y)
+! #define state	(vc_cons[currcons].vc_state)
+! #define restate	(vc_cons[currcons].vc_restate)
+! #define checkin	(vc_cons[currcons].vc_checkin)
+! #define npar	(vc_cons[currcons].vc_npar)
+! #define par	(vc_cons[currcons].vc_par)
+! #define ques	(vc_cons[currcons].vc_ques)
+! #define attr	(vc_cons[currcons].vc_attr)
+! #define saved_x	(vc_cons[currcons].vc_saved_x)
+! #define saved_y	(vc_cons[currcons].vc_saved_y)
+! #define video_mem_start	(vc_cons[currcons].vc_video_mem_start)
+! #define video_mem_end (vc_cons[currcons].vc_video_mem_end)
+! #define def_attr	(vc_cons[currcons].vc_def_attr)
+! #define video_erase_char  (vc_cons[currcons].vc_video_erase_char)	
+! #define iscolor (vc_cons[currcons].vc_iscolor)
+! int fg_console = 0;
+! static int blanked_fg = -1;
+! int blankinterval = 0;
+! int unsigned short blankcount = 0;
+  
+  static void sysbeep(void);
+  
+***************
+*** 85,91 ****
+  #define RESPONSE "\033[?1;2c"
+  
+  /* NOTE! gotoxy thinks x==video_num_columns is ok */
+! static inline void gotoxy(unsigned int new_x,unsigned int new_y)
+  {
+  	if (new_x > video_num_columns || new_y >= video_num_lines)
+  		return;
+--- 135,141 ----
+  #define RESPONSE "\033[?1;2c"
+  
+  /* NOTE! gotoxy thinks x==video_num_columns is ok */
+! static inline void gotoxy(int currcons, int new_x,unsigned int new_y)
+  {
+  	if (new_x > video_num_columns || new_y >= video_num_lines)
+  		return;
+***************
+*** 94,100 ****
+  	pos=origin + y*video_size_row + (x<<1);
+  }
+  
+! static inline void set_origin(void)
+  {
+  	cli();
+  	outb_p(12, video_port_reg);
+--- 144,150 ----
+  	pos=origin + y*video_size_row + (x<<1);
+  }
+  
+! static inline void set_origin(int currcons)
+  {
+  	cli();
+  	outb_p(12, video_port_reg);
+***************
+*** 104,112 ****
+  	sti();
+  }
+  
+! static void scrup(void)
+  {
+! 	if (video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM)
+  	{
+  		if (!top && bottom == video_num_lines) {
+  			origin += video_size_row;
+--- 154,163 ----
+  	sti();
+  }
+  
+! static void scrup(int currcons)
+  {
+! 	if ((currcons == fg_console) && 
+! 	  ((video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM)))
+  	{
+  		if (!top && bottom == video_num_lines) {
+  			origin += video_size_row;
+***************
+*** 136,142 ****
+  					"D" (scr_end-video_size_row)
+  					:"cx","di");
+  			}
+! 			set_origin();
+  		} else {
+  			__asm__("cld\n\t"
+  				"rep\n\t"
+--- 187,193 ----
+  					"D" (scr_end-video_size_row)
+  					:"cx","di");
+  			}
+! 			set_origin(currcons);
+  		} else {
+  			__asm__("cld\n\t"
+  				"rep\n\t"
+***************
+*** 167,175 ****
+  	}
+  }
+  
+! static void scrdown(void)
+  {
+! 	if (video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM)
+  	{
+  		__asm__("std\n\t"
+  			"rep\n\t"
+--- 218,227 ----
+  	}
+  }
+  
+! static void scrdown(int currcons)
+  {
+! 	if ((currcons == fg_console) && 
+! 	  ((video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM)))
+  	{
+  		__asm__("std\n\t"
+  			"rep\n\t"
+***************
+*** 201,207 ****
+  	}
+  }
+  
+! static void lf(void)
+  {
+  	if (y+1<bottom) {
+  		y++;
+--- 253,259 ----
+  	}
+  }
+  
+! static void lf(int currcons)
+  {
+  	if (y+1<bottom) {
+  		y++;
+***************
+*** 208,217 ****
+  		pos += video_size_row;
+  		return;
+  	}
+! 	scrup();
+  }
+  
+! static void ri(void)
+  {
+  	if (y>top) {
+  		y--;
+--- 260,269 ----
+  		pos += video_size_row;
+  		return;
+  	}
+! 	scrup(currcons);
+  }
+  
+! static void ri(int currcons)
+  {
+  	if (y>top) {
+  		y--;
+***************
+*** 218,233 ****
+  		pos -= video_size_row;
+  		return;
+  	}
+! 	scrdown();
+  }
+  
+! static void cr(void)
+  {
+  	pos -= x<<1;
+  	x=0;
+  }
+  
+! static void del(void)
+  {
+  	if (x) {
+  		pos -= 2;
+--- 270,285 ----
+  		pos -= video_size_row;
+  		return;
+  	}
+! 	scrdown(currcons);
+  }
+  
+! static void cr(int currcons)
+  {
+  	pos -= x<<1;
+  	x=0;
+  }
+  
+! static void del(int currcons)
+  {
+  	if (x) {
+  		pos -= 2;
+***************
+*** 236,247 ****
+  	}
+  }
+  
+! static void csi_J(int par)
+  {
+  	long count __asm__("cx");
+  	long start __asm__("di");
+  
+! 	switch (par) {
+  		case 0:	/* erase from cursor to end of display */
+  			count = (scr_end-pos)>>1;
+  			start = pos;
+--- 288,299 ----
+  	}
+  }
+  
+! static void csi_J(int currcons, int vpar)
+  {
+  	long count __asm__("cx");
+  	long start __asm__("di");
+  
+! 	switch (vpar) {
+  		case 0:	/* erase from cursor to end of display */
+  			count = (scr_end-pos)>>1;
+  			start = pos;
+***************
+*** 265,276 ****
+  		:"cx","di");
+  }
+  
+! static void csi_K(int par)
+  {
+  	long count __asm__("cx");
+  	long start __asm__("di");
+  
+! 	switch (par) {
+  		case 0:	/* erase from cursor to end of line */
+  			if (x>=video_num_columns)
+  				return;
+--- 317,328 ----
+  		:"cx","di");
+  }
+  
+! static void csi_K(int currcons, int vpar)
+  {
+  	long count __asm__("cx");
+  	long start __asm__("di");
+  
+! 	switch (vpar) {
+  		case 0:	/* erase from cursor to end of line */
+  			if (x>=video_num_columns)
+  				return;
+***************
+*** 296,317 ****
+  		:"cx","di");
+  }
+  
+! void csi_m(void)
+  {
+  	int i;
+  
+  	for (i=0;i<=npar;i++)
+  		switch (par[i]) {
+! 			case 0:attr=0x07;break;
+! 			case 1:attr=0x0f;break;
+! 			case 4:attr=0x0f;break;
+! 			case 7:attr=0x70;break;
+! 			case 27:attr=0x07;break;
+  		}
+  }
+  
+! static inline void set_cursor(void)
+  {
+  	cli();
+  	outb_p(14, video_port_reg);
+  	outb_p(0xff&((pos-video_mem_start)>>9), video_port_val);
+--- 348,400 ----
+  		:"cx","di");
+  }
+  
+! void csi_m(int currcons )
+  {
+  	int i;
+  
+  	for (i=0;i<=npar;i++)
+  		switch (par[i]) {
+! 			case 0: attr=def_attr;break;  /* default */
+! 			case 1: attr=(iscolor?attr|0x08:attr|0x0f);break;  /* bold */
+! 			case 4: attr=attr|0x01;break;  /* underline */
+! 			case 5: attr=attr|0x80;break;  /* blinking */
+! 			case 7: attr=(attr<<4)|(attr>>4);break;  /* negative */
+! 			case 22: attr=attr&0xf7;break; /* not bold */ 
+! 			case 24: attr=attr&0xfe;break;  /* not underline */
+! 			case 25: attr=attr&0x7f;break;  /* not blinking */
+! 			case 27: attr=def_attr;break; /* positive image */
+! 			case 39: attr=(attr & 0xf0)|(def_attr & 0x0f); break;
+! 			case 49: attr=(attr & 0x0f)|(def_attr & 0xf0); break;
+! 			default:
+! 			  if (!candocolor)
+! 			    break;
+! 			  iscolor = 1;
+! 			  if ((par[i]>=30) && (par[i]<=38))
+! 			    attr = (attr & 0xf0) | (par[i]-30);
+! 			  else  /* Background color */
+! 			    if ((par[i]>=40) && (par[i]<=48))
+! 			      attr = (attr & 0x0f) | ((par[i]-40)<<4);
+! 			    else
+! 				break;
+  		}
+  }
+  
+! static char csi_graph(int currcons, char ch )
+! {
+!   char *val, *ac=
+! "0\333a\261h\040I\017`\004f\370g\361j\331k\277l\332m\300n\305q\304t\303u\264v\301w\302x\263~\025";
+!   if (!checkin)
+!     return(ch);
+!   if (val = strchr(ac,ch))
+!     return(*(val+1));
+!   return(0); 
+! 
+! }
+! 
+! static inline void set_cursor(int currcons)
+  {
++ 	if (currcons != fg_console)
++ 	  return;
+  	cli();
+  	outb_p(14, video_port_reg);
+  	outb_p(0xff&((pos-video_mem_start)>>9), video_port_val);
+***************
+*** 320,326 ****
+  	sti();
+  }
+  
+! static void respond(struct tty_struct * tty)
+  {
+  	char * p = RESPONSE;
+  
+--- 403,417 ----
+  	sti();
+  }
+  
+! static inline void hide_cursor(int currcons)
+! {
+! 	outb_p(14, video_port_reg);
+! 	outb_p(0xff&((scr_end-video_mem_start)>>9), video_port_val);
+! 	outb_p(15, video_port_reg);
+! 	outb_p(0xff&((scr_end-video_mem_start)>>1), video_port_val);
+! }
+! 
+! static void respond(int currcons, struct tty_struct * tty)
+  {
+  	char * p = RESPONSE;
+  
+***************
+*** 333,339 ****
+  	copy_to_cooked(tty);
+  }
+  
+! static void insert_char(void)
+  {
+  	int i=x;
+  	unsigned short tmp, old = video_erase_char;
+--- 424,430 ----
+  	copy_to_cooked(tty);
+  }
+  
+! static void insert_char(int currcons)
+  {
+  	int i=x;
+  	unsigned short tmp, old = video_erase_char;
+***************
+*** 347,353 ****
+  	}
+  }
+  
+! static void insert_line(void)
+  {
+  	int oldtop,oldbottom;
+  
+--- 438,444 ----
+  	}
+  }
+  
+! static void insert_line(int currcons)
+  {
+  	int oldtop,oldbottom;
+  
+***************
+*** 355,366 ****
+  	oldbottom=bottom;
+  	top=y;
+  	bottom = video_num_lines;
+! 	scrdown();
+  	top=oldtop;
+  	bottom=oldbottom;
+  }
+  
+! static void delete_char(void)
+  {
+  	int i;
+  	unsigned short * p = (unsigned short *) pos;
+--- 446,457 ----
+  	oldbottom=bottom;
+  	top=y;
+  	bottom = video_num_lines;
+! 	scrdown(currcons);
+  	top=oldtop;
+  	bottom=oldbottom;
+  }
+  
+! static void delete_char(int currcons)
+  {
+  	int i;
+  	unsigned short * p = (unsigned short *) pos;
+***************
+*** 375,381 ****
+  	*p = video_erase_char;
+  }
+  
+! static void delete_line(void)
+  {
+  	int oldtop,oldbottom;
+  
+--- 466,472 ----
+  	*p = video_erase_char;
+  }
+  
+! static void delete_line(int currcons)
+  {
+  	int oldtop,oldbottom;
+  
+***************
+*** 383,394 ****
+  	oldbottom=bottom;
+  	top=y;
+  	bottom = video_num_lines;
+! 	scrup();
+  	top=oldtop;
+  	bottom=oldbottom;
+  }
+  
+! static void csi_at(unsigned int nr)
+  {
+  	if (nr > video_num_columns)
+  		nr = video_num_columns;
+--- 474,485 ----
+  	oldbottom=bottom;
+  	top=y;
+  	bottom = video_num_lines;
+! 	scrup(currcons);
+  	top=oldtop;
+  	bottom=oldbottom;
+  }
+  
+! static void csi_at(int currcons, unsigned int nr)
+  {
+  	if (nr > video_num_columns)
+  		nr = video_num_columns;
+***************
+*** 395,404 ****
+  	else if (!nr)
+  		nr = 1;
+  	while (nr--)
+! 		insert_char();
+  }
+  
+! static void csi_L(unsigned int nr)
+  {
+  	if (nr > video_num_lines)
+  		nr = video_num_lines;
+--- 486,495 ----
+  	else if (!nr)
+  		nr = 1;
+  	while (nr--)
+! 		insert_char(currcons);
+  }
+  
+! static void csi_L(int currcons, unsigned int nr)
+  {
+  	if (nr > video_num_lines)
+  		nr = video_num_lines;
+***************
+*** 405,414 ****
+  	else if (!nr)
+  		nr = 1;
+  	while (nr--)
+! 		insert_line();
+  }
+  
+! static void csi_P(unsigned int nr)
+  {
+  	if (nr > video_num_columns)
+  		nr = video_num_columns;
+--- 496,505 ----
+  	else if (!nr)
+  		nr = 1;
+  	while (nr--)
+! 		insert_line(currcons);
+  }
+  
+! static void csi_P(int currcons, unsigned int nr)
+  {
+  	if (nr > video_num_columns)
+  		nr = video_num_columns;
+***************
+*** 415,424 ****
+  	else if (!nr)
+  		nr = 1;
+  	while (nr--)
+! 		delete_char();
+  }
+  
+! static void csi_M(unsigned int nr)
+  {
+  	if (nr > video_num_lines)
+  		nr = video_num_lines;
+--- 506,515 ----
+  	else if (!nr)
+  		nr = 1;
+  	while (nr--)
+! 		delete_char(currcons);
+  }
+  
+! static void csi_M(int currcons, unsigned int nr)
+  {
+  	if (nr > video_num_lines)
+  		nr = video_num_lines;
+***************
+*** 425,477 ****
+  	else if (!nr)
+  		nr=1;
+  	while (nr--)
+! 		delete_line();
+  }
+  
+! static int saved_x=0;
+! static int saved_y=0;
+! 
+! static void save_cur(void)
+  {
+  	saved_x=x;
+  	saved_y=y;
+  }
+  
+! static void restore_cur(void)
+  {
+! 	gotoxy(saved_x, saved_y);
+  }
+  
+  void con_write(struct tty_struct * tty)
+  {
+  	int nr;
+! 	char c;
+  
+  	nr = CHARS(tty->write_q);
+  	while (nr--) {
+  		GETCH(tty->write_q,c);
+  		switch(state) {
+! 			case 0:
+  				if (c>31 && c<127) {
+  					if (x>=video_num_columns) {
+  						x -= video_num_columns;
+  						pos -= video_size_row;
+! 						lf();
+  					}
+! 					__asm__("movb _attr,%%ah\n\t"
+  						"movw %%ax,%1\n\t"
+! 						::"a" (c),"m" (*(short *)pos)
+  						:"ax");
+  					pos += 2;
+  					x++;
+  				} else if (c==27)
+! 					state=1;
+  				else if (c==10 || c==11 || c==12)
+! 					lf();
+  				else if (c==13)
+! 					cr();
+  				else if (c==ERASE_CHAR(tty))
+! 					del();
+  				else if (c==8) {
+  					if (x) {
+  						x--;
+--- 516,584 ----
+  	else if (!nr)
+  		nr=1;
+  	while (nr--)
+! 		delete_line(currcons);
+  }
+  
+! static void save_cur(int currcons)
+  {
+  	saved_x=x;
+  	saved_y=y;
+  }
+  
+! static void restore_cur(int currcons)
+  {
+! 	gotoxy(currcons,saved_x, saved_y);
+  }
+  
++ 
++ static int in_conwrite = 0;
++ 
++ enum { ESnormal, ESesc, ESsquare, ESgetpars, ESgotpars, ESfunckey, 
++   ESsetterm, ESsetgraph, ESgraph, ESgresc, ESignore };
++ 
+  void con_write(struct tty_struct * tty)
+  {
+  	int nr;
+! 	char c, ch = 0;
+  
++ 	int currcons;
++      
++      	in_conwrite++; 
++      	
++ 	currcons = tty->ttynum;
++ 	if (!currcons)  /* tty0 always writes to the current one. */
++ 	  currcons = (fg_console>=0 ? fg_console : blanked_fg);
++ 	else 
++ 	  currcons--;
++ 	if ((currcons>=NR_CONSOLES) || (currcons<0))
++ 	  panic("con_write: illegal tty");
++  	   
+  	nr = CHARS(tty->write_q);
+  	while (nr--) {
+  		GETCH(tty->write_q,c);
+  		switch(state) {
+! 			case ESnormal:
+  				if (c>31 && c<127) {
+  					if (x>=video_num_columns) {
+  						x -= video_num_columns;
+  						pos -= video_size_row;
+! 						lf(currcons);
+  					}
+! 					__asm__("movb %2,%%ah\n\t"
+  						"movw %%ax,%1\n\t"
+! 						::"a" (c),"m" (*(short *)pos),
+! 						"m" (attr)
+  						:"ax");
+  					pos += 2;
+  					x++;
+  				} else if (c==27)
+! 					state=ESesc;
+  				else if (c==10 || c==11 || c==12)
+! 					lf(currcons);
+  				else if (c==13)
+! 					cr(currcons);
+  				else if (c==ERASE_CHAR(tty))
+! 					del(currcons);
+  				else if (c==8) {
+  					if (x) {
+  						x--;
+***************
+*** 484,520 ****
+  					if (x>video_num_columns) {
+  						x -= video_num_columns;
+  						pos -= video_size_row;
+! 						lf();
+  					}
+  					c=9;
+  				} else if (c==7)
+  					sysbeep();
+  				break;
+! 			case 1:
+! 				state=0;
+! 				if (c=='[')
+! 					state=2;
+! 				else if (c=='E')
+! 					gotoxy(0,y+1);
+! 				else if (c=='M')
+! 					ri();
+! 				else if (c=='D')
+! 					lf();
+! 				else if (c=='Z')
+! 					respond(tty);
+! 				else if (x=='7')
+! 					save_cur();
+! 				else if (x=='8')
+! 					restore_cur();
+  				break;
+! 			case 2:
+  				for(npar=0;npar<NPAR;npar++)
+  					par[npar]=0;
+  				npar=0;
+! 				state=3;
+  				if (ques=(c=='?'))
+  					break;
+! 			case 3:
+  				if (c==';' && npar<NPAR-1) {
+  					npar++;
+  					break;
+--- 591,665 ----
+  					if (x>video_num_columns) {
+  						x -= video_num_columns;
+  						pos -= video_size_row;
+! 						lf(currcons);
+  					}
+  					c=9;
+  				} else if (c==7)
+  					sysbeep();
++ 			  	else if (c == 14)
++ 			  	{ checkin = 1;
++ 			  	  state = restate;
++ 			  	}
++ 			  	else if (c == 15)
++ 			  	  checkin = 0;
+  				break;
+! 			case ESesc:
+! 				state=(restate==ESgresc?ESgraph:ESnormal);
+! 				switch (c)
+! 				{
+! 				  case '[':
+! 					state=ESsquare;
+! 					break;
+! 				  case 'E':
+! 					gotoxy(currcons,0,y+1);
+! 					break;
+! 				  case 'M':
+! 					ri(currcons);
+! 					break;
+! 				  case 'D':
+! 					lf(currcons);
+! 					break;
+! 				  case 'Z':
+! 					respond(currcons,tty);
+! 					break;
+! 				  case '7':
+! 					save_cur(currcons);
+! 					break;
+! 				  case '8':
+! 					restore_cur(currcons);
+! 					break;
+! 				  case '(':  case ')':
+! 				    	state = ESsetgraph;		
+! 					break;
+! 				  case 'P':
+! 				    	state = ESsetterm;  
+! 				    	break;
+! 				  case '#':
+! 				  	state = -1;
+! 				  	break;  	
+! 				  case 'c':
+! 					tty->termios.c_iflag = ICRNL;
+! 				  	tty->termios.c_oflag = OPOST|ONLCR;
+! 				  	state = restate = ESnormal;
+! 					top = 0;
+! 					bottom = video_num_lines;
+! 					break;
+! 				 /* case '>':   Numeric keypad */
+! 				 /* case '=':   Appl. keypad */
+! 				}	
+  				break;
+! 			case ESsquare:
+  				for(npar=0;npar<NPAR;npar++)
+  					par[npar]=0;
+  				npar=0;
+! 				state=ESgetpars;
+! 				if (c =='[')  /* Function key */
+! 				{ state=ESfunckey;
+! 				  break;
+! 				}  
+  				if (ques=(c=='?'))
+  					break;
+! 			case ESgetpars:
+  				if (c==';' && npar<NPAR-1) {
+  					npar++;
+  					break;
+***************
+*** 521,587 ****
+  				} else if (c>='0' && c<='9') {
+  					par[npar]=10*par[npar]+c-'0';
+  					break;
+! 				} else state=4;
+! 			case 4:
+! 				state=0;
+  				switch(c) {
+  					case 'G': case '`':
+  						if (par[0]) par[0]--;
+! 						gotoxy(par[0],y);
+  						break;
+  					case 'A':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(x,y-par[0]);
+  						break;
+  					case 'B': case 'e':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(x,y+par[0]);
+  						break;
+  					case 'C': case 'a':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(x+par[0],y);
+  						break;
+  					case 'D':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(x-par[0],y);
+  						break;
+  					case 'E':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(0,y+par[0]);
+  						break;
+  					case 'F':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(0,y-par[0]);
+  						break;
+  					case 'd':
+  						if (par[0]) par[0]--;
+! 						gotoxy(x,par[0]);
+  						break;
+  					case 'H': case 'f':
+  						if (par[0]) par[0]--;
+  						if (par[1]) par[1]--;
+! 						gotoxy(par[1],par[0]);
+  						break;
+  					case 'J':
+! 						csi_J(par[0]);
+  						break;
+  					case 'K':
+! 						csi_K(par[0]);
+  						break;
+  					case 'L':
+! 						csi_L(par[0]);
+  						break;
+  					case 'M':
+! 						csi_M(par[0]);
+  						break;
+  					case 'P':
+! 						csi_P(par[0]);
+  						break;
+  					case '@':
+! 						csi_at(par[0]);
+  						break;
+  					case 'm':
+! 						csi_m();
+  						break;
+  					case 'r':
+  						if (par[0]) par[0]--;
+--- 666,732 ----
+  				} else if (c>='0' && c<='9') {
+  					par[npar]=10*par[npar]+c-'0';
+  					break;
+! 				} else state=ESgotpars;
+! 			case ESgotpars:
+! 				state=(restate==ESgresc?ESgraph:ESnormal);
+  				switch(c) {
+  					case 'G': case '`':
+  						if (par[0]) par[0]--;
+! 						gotoxy(currcons,par[0],y);
+  						break;
+  					case 'A':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(currcons,x,y-par[0]);
+  						break;
+  					case 'B': case 'e':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(currcons,x,y+par[0]);
+  						break;
+  					case 'C': case 'a':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(currcons,x+par[0],y);
+  						break;
+  					case 'D':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(currcons,x-par[0],y);
+  						break;
+  					case 'E':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(currcons,0,y+par[0]);
+  						break;
+  					case 'F':
+  						if (!par[0]) par[0]++;
+! 						gotoxy(currcons,0,y-par[0]);
+  						break;
+  					case 'd':
+  						if (par[0]) par[0]--;
+! 						gotoxy(currcons,x,par[0]);
+  						break;
+  					case 'H': case 'f':
+  						if (par[0]) par[0]--;
+  						if (par[1]) par[1]--;
+! 						gotoxy(currcons,par[1],par[0]);
+  						break;
+  					case 'J':
+! 						csi_J(currcons,par[0]);
+  						break;
+  					case 'K':
+! 						csi_K(currcons,par[0]);
+  						break;
+  					case 'L':
+! 						csi_L(currcons,par[0]);
+  						break;
+  					case 'M':
+! 						csi_M(currcons,par[0]);
+  						break;
+  					case 'P':
+! 						csi_P(currcons,par[0]);
+  						break;
+  					case '@':
+! 						csi_at(currcons,par[0]);
+  						break;
+  					case 'm':
+! 						csi_m(currcons);
+  						break;
+  					case 'r':
+  						if (par[0]) par[0]--;
+***************
+*** 593,607 ****
+  						}
+  						break;
+  					case 's':
+! 						save_cur();
+  						break;
+  					case 'u':
+! 						restore_cur();
+  						break;
+  				}
+  		}
+  	}
+! 	set_cursor();
+  }
+  
+  /*
+--- 738,827 ----
+  						}
+  						break;
+  					case 's':
+! 						save_cur(currcons);
+  						break;
+  					case 'u':
+! 						restore_cur(currcons);
+  						break;
++ 					case 'l': /* blank interval */
++ 						if ((par[0]>=0) && (par[0]<=60)
++ 						  && (npar >= 2) &&
++ 						  ((par[1]-13) == par[0]) && 
++ 						  ((par[2]-17) == par[0])) 
++ 						{  
++ 						  blankinterval = HZ*60*par[0];
++ 						  blankcount = blankinterval;
++ 						}
+  				}
++ 				break;
++ 			case ESfunckey:
++ 			  break;
++ 			case ESsetterm:  /* Setterm functions. */
++ 			    if (c == 'S')
++ 			    { def_attr = attr;
++ 			      video_erase_char = (video_erase_char&0x0ff) | (def_attr<<8);
++ 			    }  
++ 			    else
++ 			    if (c == 'L')
++ 			      ; /*linewrap on*/  
++ 			    else  
++ 			    if (c == 'l')
++ 			      ; /*linewrap off*/  
++ 			    state = ESnormal;  
++ 			  break;  
++ 			case ESsetgraph:
++ 			  if (c == '0')
++ 			  { if (checkin)
++ 			      state = ESgraph;
++ 			    else
++ 			      state = ESnormal;
++ 			    restate = ESgraph;
++ 			  }  
++ 			  else
++ 			  if (c == 'B')
++ 			    state = restate = ESnormal;
++ 			  break;
++ 			case ESgraph:
++ 			case ESgresc:
++ 			  restate = ESgraph;
++ 			  if (c == 15)  /* End graphics */
++ 			  { checkin = 0;
++ 			    state = ESnormal;
++ 			    break;
++ 			  }  
++ 			  else if (c == 14)  /* Start graphics */
++ 			  { checkin = 1;
++ 			    break;
++ 			  }  
++ 			  else if (c == 27)
++ 			  { state = ESesc;
++ 			    restate = ESgresc;
++ 			    break;
++ 			  }
++ 			  ch = csi_graph(currcons,c);  
++ 			  if (ch)
++ 				if (x>=video_num_columns) {
++ 					x -= video_num_columns;
++ 					pos -= video_size_row;
++ 					lf(currcons);
++ 				}
++ 				__asm__("movb %2,%%ah\n\t"
++ 					"movw %%ax,%1\n\t"
++ 					::"a" (ch),"m" (*(short *)pos),
++ 					"m" (attr)
++ 					:"ax");
++ 				pos += 2;
++ 				x++;
++ 			  break;
++ 			default:
++ 			  state++;
++ 			  break;  
++ 			      
++ 			  
+  		}
+  	}
+! 	set_cursor(currcons);
+!      	in_conwrite--; 
+  }
+  
+  /*
+***************
+*** 619,624 ****
+--- 839,845 ----
+  	register unsigned char a;
+  	char *display_desc = "????";
+  	char *display_ptr;
++ 	int currcons = 0, i, j, maxj; 
+  
+  	video_num_columns = ORIG_VIDEO_COLS;
+  	video_size_row = video_num_columns * 2;
+***************
+*** 625,630 ****
+--- 846,852 ----
+  	video_num_lines = ORIG_VIDEO_LINES;
+  	video_page = ORIG_VIDEO_PAGE;
+  	video_erase_char = 0x0720;
++ 	blankcount = blankinterval;
+  	
+  	if (ORIG_VIDEO_MODE == 7)			/* Is this a monochrome display? */
+  	{
+***************
+*** 646,651 ****
+--- 868,874 ----
+  	}
+  	else								/* If not, it is color. */
+  	{
++ 		candocolor = 1;
+  		video_mem_start = 0xb8000;
+  		video_port_reg	= 0x3d4;
+  		video_port_val	= 0x3d5;
+***************
+*** 662,667 ****
+--- 885,892 ----
+  			display_desc = "*CGA";
+  		}
+  	}
++ 	video_mem_base = video_mem_start;
++ 	video_mem_term = video_mem_end;
+  
+  	/* Let the user known what kind of display driver we are using */
+  	
+***************
+*** 678,690 ****
+  	scr_end	= video_mem_start + video_num_lines * video_size_row;
+  	top	= 0;
+  	bottom	= video_num_lines;
+  
+! 	gotoxy(ORIG_X,ORIG_Y);
+  	set_trap_gate(0x21,&keyboard_interrupt);
+  	outb_p(inb_p(0x21)&0xfd,0x21);
+  	a=inb_p(0x61);
+  	outb_p(a|0x80,0x61);
+! 	outb(a,0x61);
+  }
+  /* from bsd-net-2: */
+  
+--- 903,932 ----
+  	scr_end	= video_mem_start + video_num_lines * video_size_row;
+  	top	= 0;
+  	bottom	= video_num_lines;
++   	attr=0x07;
++   	def_attr=0x07;
++         restate = state=ESnormal;
++         checkin = 0;
++ 	ques = 0;
++ 	iscolor = 0;
+  
+! 	gotoxy(currcons,ORIG_X,ORIG_Y);
+  	set_trap_gate(0x21,&keyboard_interrupt);
+  	outb_p(inb_p(0x21)&0xfd,0x21);
+  	a=inb_p(0x61);
+  	outb_p(a|0x80,0x61);
+! 	outb_p(a,0x61);
+!   	for (i=1; i<NR_CONSOLES; i++)
+!         { vc_cons[i] = vc_cons[0];
+! 	  vc_cons[i].vc_origin	= (unsigned long)vc_scrbuf[i].screen;
+! 	  vc_cons[i].vc_scr_end	= vc_cons[i].vc_origin + video_num_lines * video_size_row;
+! 	  vc_cons[i].vc_video_mem_start = vc_cons[i].vc_origin;
+! 	  vc_cons[i].vc_video_mem_end = (i ? vc_cons[i].vc_scr_end : video_mem_term);
+! 	  vc_cons[i].vc_pos=vc_cons[i].vc_video_mem_start + y*video_size_row + (x<<1);
+! 	  maxj = video_num_lines*video_num_columns;
+! 	  for (j=0; j<maxj; j++)
+!             vc_scrbuf[i].screen[j] = video_erase_char;
+!         }
+  }
+  /* from bsd-net-2: */
+  
+***************
+*** 707,710 ****
+--- 949,1143 ----
+  	outb(0x06, 0x42);
+  	/* 1/8 second */
+  	beepcount = HZ/8;	
++ }
++ 
++ 
++ 
++ static int kb_ack( int data_port)
++ {
++   int retries;
++ 
++   retries = 0x1000;
++   while (--retries != 0 && inb_p(data_port) != 0xFA)
++ 	;			/* wait for ack */
++   return(retries);		/* nonzero if ack received */
++ }
++ 
++ static int kb_wait(int status_port)
++ {
++   int retries = 0x1000;
++   while ((--retries != 0) && (inb_p(status_port) & 0x02))
++     ;
++   return(retries);
++ }
++ 
++ /* Set the LEDs on the caps lock and num lock keys. 
++ static void set_leds( int currcons, int oldcons )
++ {
++ 
++   int leds, mode, data_port, status_port;
++   extern unsigned char kbd_leds[2];
++   extern unsigned char kbd_mode[2];
++ 
++   vc_cons[oldcons].saveled = kbd_leds[0];
++   vc_cons[oldcons].savemode = kbd_mode[0];
++   leds = vc_cons[currcons].saveled;
++   mode = vc_cons[currcons].savemode;
++   kbd_leds[0] = leds;
++   kbd_mode[0] = mode;
++   leds = (((mode>>6)&2) | ((mode>>5)&4));
++ 
++ #ifdef PS_TWO
++   if (ps) {
++ 	data_port = 0x68;
++ 	status_port = 0x72;
++   } else 
++ #endif
++   {
++ 	data_port = 0x60;
++ 	status_port = 0x64;
++   }
++ 
++   kb_wait(status_port);	
++   outb_p(data_port, 0xED);
++   kb_ack(data_port);
++ 
++   kb_wait(status_port);	
++   outb_p(data_port, leds);
++   kb_ack(data_port);		
++ } */
++ 
++ 
++ static void get_scrmem(int currcons)
++ {
++   if ((video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM) &&
++     (origin != video_mem_start))
++   { unsigned long i;
++     i = scr_end-origin;
++     memcpy((void *)vc_scrbuf[fg_console].screen, (void *)origin, i );
++     memcpy( (void*)(((char*)vc_scrbuf[fg_console].screen)+i),
++       (void *)video_mem_base, SCR_SIZE-i);
++   }
++   else
++     memcpy((void *)vc_scrbuf[fg_console].screen,
++       (void *)video_mem_base, SCR_SIZE);
++   origin 	=
++   video_mem_start = (unsigned long)vc_scrbuf[fg_console].screen;
++   video_mem_end = video_mem_start+sizeof(vc_scrbuf[0]);
++   scr_end	= video_mem_start + video_num_lines * video_size_row;
++   top		= 0;
++   pos=origin + y*video_size_row + (x<<1);
++   bottom	= video_num_lines;
++ }
++ 
++ static void set_scrmem(int currcons)
++ {
++   video_mem_start = video_mem_base;
++   video_mem_end = video_mem_term;
++   origin	= video_mem_start;
++   scr_end	= video_mem_start + video_num_lines * video_size_row;
++   top		= 0;
++   bottom	= video_num_lines; 
++   pos=origin + y*video_size_row + (x<<1);
++   memcpy((void *)video_mem_base, (void *)vc_scrbuf[fg_console].screen,
++     SCR_SIZE);
++ }
++ 
++ inline void * memsetw(void * s,unsigned short c,int count)
++ {
++ __asm__("cld\n\t"
++ 	"rep\n\t"
++ 	"stosw"
++ 	::"a" (c),"D" (s),"c" (count)
++ 	:"cx","di");
++ return s;
++ }
++ 
++ void blank_screen()
++ { 
++   if (in_conwrite)
++   { blankcount = HZ*20;
++     return; 
++   }
++   if (blanked_fg > -1)
++     return;
++   blanked_fg = fg_console;
++   get_scrmem(fg_console);
++   hide_cursor(fg_console);
++   fg_console = -1;
++   memsetw((void *)video_mem_base, 0x0720, SCR_SIZE );
++ }
++ 
++ void unblank_screen()
++ {
++   if (in_conwrite)
++   { blankcount = HZ*20;
++     return; 
++   }
++   if (blanked_fg <= -1)
++     return;
++   fg_console = blanked_fg;
++   blanked_fg = -1;
++   set_scrmem(fg_console);
++   if (video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM) 
++     set_origin(fg_console);
++   set_cursor(fg_console);
++ }
++ 
++ 
++ static void swap_screen(int num)
++ {
++   if (num == fg_console)
++     return;
++   cli();
++   if (fg_console == -1)
++     unblank_screen();
++   get_scrmem(fg_console); 
++   fg_console = num;
++   table_list[0] = &tty_table[num+1].read_q;  
++   table_list[1] = &tty_table[num+1].write_q;
++   set_scrmem(fg_console); 
++   sti();
++   if (video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM) 
++     set_origin(fg_console);
++   set_cursor(num);
++ }
++ 
++ static void change_console(int num)
++ {
++ /* Bring virtual console num to the foreground, or cycle to next console if
++  * num is -1.
++  */
++ 
++   int new_console, old_console;
++   if (in_conwrite)
++     return; 
++ 
++   if (num >= NR_CONSOLES) return;
++ 
++   old_console = new_console = fg_console;
++ 
++   /* Value of fg_console is accessed asynchronously by keyboard() interrupt
++    * routine, need to perform lock because update can't be guaranteed to be
++    * atomic.
++    */
++   if (num == -1) {
++ 	new_console++;
++ 	if (new_console >= NR_CONSOLES) new_console = 0;
++   } else
++ 	new_console = num;
++ 
++   /* Set leds and display for new console. */
++   /* set_leds(new_console,old_console); */
++   swap_screen(new_console);
++ }
++ 
++ extern void show_stat(void);
++ 
++ void display_stat( long regeax )
++ { 
++   if (regeax<NR_CONSOLES)
++     change_console( regeax ); 
++   else
++     show_stat();
+  }
+*** kernel/chr_drv/keyboard.S.orig	Wed Dec  4 15:07:59 1991
+--- kernel/chr_drv/keyboard.S	Tue Dec 24 20:00:29 1991
+***************
+*** 44,49 ****
+--- 44,51 ----
+  	movl $0x10,%eax
+  	mov %ax,%ds
+  	mov %ax,%es
++ 	movl _blankinterval,%eax
++ 	movl %eax,_blankcount
+  	xorl %al,%al		/* %eax is scan code */
+  	inb $0x60,%al
+  	cmpb $0xe0,%al
+***************
+*** 208,222 ****
+   * this routine handles function keys
+   */
+  func:
+! 	pushl %eax
+  	pushl %ecx
+  	pushl %edx
+! 	call _show_stat
+  	popl %edx
+  	popl %ecx
+! 	popl %eax
+! 	subb $0x3B,%al
+! 	jb end_func
+  	cmpb $9,%al
+  	jbe ok_func
+  	subb $18,%al
+--- 210,225 ----
+   * this routine handles function keys
+   */
+  func:
+! 	subb $0x3B,%al
+! 	jb end_func
+  	pushl %ecx
+  	pushl %edx
+! 	pushl %eax
+! 	call _display_stat
+! 	popl %eax
+  	popl %edx
+  	popl %ecx
+! 	jmp  end_func
+  	cmpb $9,%al
+  	jbe ok_func
+  	subb $18,%al
+*** kernel/chr_drv/serial.c.orig	Mon Dec 16 13:30:34 1991
+--- kernel/chr_drv/serial.c	Fri Dec 27 13:21:58 1991
+***************
+*** 38,45 ****
+  {
+  	set_intr_gate(0x24,rs1_interrupt);
+  	set_intr_gate(0x23,rs2_interrupt);
+! 	init(tty_table[1].read_q.data);
+! 	init(tty_table[2].read_q.data);
+  	outb(inb_p(0x21)&0xE7,0x21);
+  }
+  
+--- 38,45 ----
+  {
+  	set_intr_gate(0x24,rs1_interrupt);
+  	set_intr_gate(0x23,rs2_interrupt);
+! 	init(TTY_TABLE(FIRST_SERIAL_DEV)->read_q.data);
+! 	init(TTY_TABLE(FIRST_SERIAL_DEV+1)->read_q.data);
+  	outb(inb_p(0x21)&0xE7,0x21);
+  }
+  
+*** kernel/chr_drv/tty_io.c.orig	Mon Dec 16 12:59:00 1991
+--- kernel/chr_drv/tty_io.c	Fri Dec 27 18:54:18 1991
+***************
+*** 48,54 ****
+  #define O_NLRET(tty)	_O_FLAG((tty),ONLRET)
+  #define O_LCUC(tty)	_O_FLAG((tty),OLCUC)
+  
+! struct tty_struct tty_table[] = {
+  	{
+  		{ICRNL,		/* change incoming CR to NL */
+  		OPOST|ONLCR,	/* change outgoing NL to CRNL */
+--- 48,56 ----
+  #define O_NLRET(tty)	_O_FLAG((tty),ONLRET)
+  #define O_LCUC(tty)	_O_FLAG((tty),OLCUC)
+  
+! struct tty_struct *_tty_lookup[256];
+! 
+! struct tty_struct tty_table[NR_TTYS] = {
+  	{
+  		{ICRNL,		/* change incoming CR to NL */
+  		OPOST|ONLCR,	/* change outgoing NL to CRNL */
+***************
+*** 90,96 ****
+  		{0,0,0,0,""}
+  	}
+  };
+- 
+  /*
+   * these are the tables used by the machine code handlers.
+   * you can implement pseudo-tty's or something by changing
+--- 92,97 ----
+***************
+*** 137,145 ****
+  	sti();
+  }
+  
+  void wait_for_keypress(void)
+  {
+! 	sleep_if_empty(&tty_table[0].secondary);
+  }
+  
+  void copy_to_cooked(struct tty_struct * tty)
+--- 138,147 ----
+  	sti();
+  }
+  
++ extern int fg_console;
+  void wait_for_keypress(void)
+  {
+! 	sleep_if_empty(&tty_table[fg_console+1].secondary);
+  }
+  
+  void copy_to_cooked(struct tty_struct * tty)
+***************
+*** 227,232 ****
+--- 229,247 ----
+  	wake_up(&tty->secondary.proc_list);
+  }
+  
++ #define IS_A_SERIAL(chan) (((chan)>=FIRST_SERIAL_DEV) && \
++ 	((chan)<(FIRST_SERIAL_DEV+NR_SERIAL)))
++ #define IS_A_CONSOLE(chan) ((chan)<=NR_CONSOLES)
++ #define IS_A_PTY_MASTER(chan) (((chan)>=FIRST_PTY_MASTER_DEV) && \
++ 	((chan)<(FIRST_PTY_MASTER_DEV+NR_PTYS)))
++ #define IS_A_PTY_SLAVE(chan) (((chan)>=FIRST_PTY_SLAVE_DEV) && \
++ 	((chan)<(FIRST_PTY_SLAVE_DEV+NR_PTYS)))
++ #define IS_A_PTY(chan) (IS_A_PTY_MASTER(chan) || IS_A_PTY_SLAVE(chan))
++ #define IS_A_TTY(chan) (IS_A_CONSOLE(chan) || IS_A_SERIAL(chan) || \
++ 	IS_A_PTY(chan))
++ 
++ static inline int pty_write(struct tty_struct *src, struct tty_struct *dst );
++ 
+  int tty_read(unsigned channel, char * buf, int nr)
+  {
+  	struct tty_struct * tty;
+***************
+*** 234,241 ****
+  	int minimum,time,flag=0;
+  	long oldalarm;
+  
+! 	if (channel>2 || nr<0) return -1;
+! 	tty = &tty_table[channel];
+  	oldalarm = current->alarm;
+  	time = 10L*tty->termios.c_cc[VTIME];
+  	minimum = tty->termios.c_cc[VMIN];
+--- 249,257 ----
+  	int minimum,time,flag=0;
+  	long oldalarm;
+  
+! 	if ((!IS_A_TTY(channel)) || nr<0)
+! 	  return -1;
+! 	tty = TTY_TABLE(channel);
+  	oldalarm = current->alarm;
+  	time = 10L*tty->termios.c_cc[VTIME];
+  	minimum = tty->termios.c_cc[VMIN];
+***************
+*** 255,262 ****
+  			break;
+  		if (EMPTY(tty->secondary) || (L_CANON(tty) &&
+  		!tty->secondary.data && LEFT(tty->secondary)>20)) {
+! 			sleep_if_empty(&tty->secondary);
+! 			continue;
+  		}
+  		do {
+  			GETCH(tty->secondary,c);
+--- 271,288 ----
+  			break;
+  		if (EMPTY(tty->secondary) || (L_CANON(tty) &&
+  		!tty->secondary.data && LEFT(tty->secondary)>20)) {
+! 		    if (tty->ttynum>=FIRST_PTY_MASTER_DEV) 
+! 		    { struct tty_struct *other;
+! 		      if (tty->ttynum>=FIRST_PTY_SLAVE_DEV)
+! 		        other = TTY_TABLE(tty->ttynum-64);
+! 		      else 
+! 		        other = TTY_TABLE(tty->ttynum+64);
+! 		      if (!pty_write(other,tty))
+! 		        sleep_if_empty(&other->write_q);
+! 		      continue; 
+! 		    }		  
+! 		    sleep_if_empty(&tty->secondary);
+! 		    continue;
+  		}
+  		do {
+  			GETCH(tty->secondary,c);
+***************
+*** 293,300 ****
+  	struct tty_struct * tty;
+  	char c, *b=buf;
+  
+! 	if (channel>2 || nr<0) return -1;
+! 	tty = channel + tty_table;
+  	while (nr>0) {
+  		sleep_if_full(&tty->write_q);
+  		if (current->signal)
+--- 319,326 ----
+  	struct tty_struct * tty;
+  	char c, *b=buf;
+  
+! 	if ((!IS_A_TTY(channel)) || nr<0) return -1;
+! 	tty = TTY_TABLE(channel);
+  	while (nr>0) {
+  		sleep_if_full(&tty->write_q);
+  		if (current->signal)
+***************
+*** 340,349 ****
+   * totally innocent.
+   */
+  void do_tty_interrupt(int tty)
+! {
+! 	copy_to_cooked(tty_table+tty);
+  }
+  
+  void chr_dev_init(void)
+  {
+  }
+--- 366,449 ----
+   * totally innocent.
+   */
+  void do_tty_interrupt(int tty)
+! { if (tty == 0)
+!     tty = fg_console+1;
+!   else
+!     if ((tty>=1) && (tty<=2))
+!       tty = tty + FIRST_SERIAL_DEV-1;
+!   copy_to_cooked(TTY_TABLE(tty));
+  }
+  
++ void pty_masterwrite(struct tty_struct *tty);
++ void pty_slavewrite(struct tty_struct *tty);
++ 
+  void chr_dev_init(void)
+  {
++   int i,j;
++   for (i=0; i<256; i++)
++     _tty_lookup[i] = 0;
++   _tty_lookup[0] = tty_table;
++   tty_table[0].ttynum = 0;
++   for (i=NR_SERIAL; i>0; i--)  /* Move serial ports up. */
++   { tty_table[NR_CONSOLES+i] = tty_table[i];
++     _tty_lookup[FIRST_SERIAL_DEV+i-1] = tty_table+NR_CONSOLES+i;
++     tty_table[NR_CONSOLES+i].ttynum = FIRST_SERIAL_DEV+i-1;
++   }  
++   for (i=1; i<=NR_CONSOLES; i++)
++   { tty_table[i] = tty_table[0];
++     _tty_lookup[i] = tty_table+i;
++     tty_table[i].ttynum = i;
++   }  
++   table_list[0] = &(TTY_TABLE(1)->read_q); 
++   table_list[1] = &(TTY_TABLE(1)->write_q); 
++   table_list[2] = &(TTY_TABLE(FIRST_SERIAL_DEV)->read_q); 
++   table_list[3] = &(TTY_TABLE(FIRST_SERIAL_DEV)->write_q); 
++   table_list[4] = &(TTY_TABLE(FIRST_SERIAL_DEV+1)->read_q); 
++   table_list[5] = &(TTY_TABLE(FIRST_SERIAL_DEV+1)->write_q); 
++   for (i=0; i<NR_PTYS; i++)
++   { j = i+NR_CONSOLES+NR_SERIAL+1;
++     _tty_lookup[i+FIRST_PTY_MASTER_DEV] = tty_table+j;
++     tty_table[j] = tty_table[0];
++     tty_table[j].ttynum = i+FIRST_PTY_MASTER_DEV;
++     tty_table[j].write = pty_masterwrite;
++     
++     j += NR_PTYS;
++     _tty_lookup[i+FIRST_PTY_SLAVE_DEV] = tty_table+j;
++     tty_table[j] = tty_table[0];
++     tty_table[j].ttynum = i+FIRST_PTY_SLAVE_DEV;
++     tty_table[j].write = pty_slavewrite;
++   }  
++ }
++ 
++ static inline int pty_write(struct tty_struct *src, struct tty_struct *dst )
++ { 
++   int nr,oldnr;
++   char c;
++   oldnr = nr = CHARS(src->write_q);
++   while (nr>0)
++   { 
++     if (FULL(dst->read_q) && FULL(dst->secondary)) 
++       break;
++     while (!FULL(dst->read_q) && nr>0)
++     { GETCH(src->write_q,c);
++       PUTCH(c,dst->read_q);
++       nr--;
++     }  
++     copy_to_cooked(dst);
++   }
++   return(oldnr>nr);
++ }
++ 
++ /* These can't really do anything, cause pty_write calls, copy_to_cooked
++    which calls tty->write, and on we would loop.  Instead the onus
++    is upon tty_read to invoke pty_write. */
++    
++ void pty_masterwrite(struct tty_struct *tty)
++ {
++   /* pty_write(tty,TTY_TABLE(tty->ttynum+64)); */
++ }
++ 
++ void pty_slavewrite(struct tty_struct *tty)
++ { 
++   /* pty_write(tty,TTY_TABLE(tty->ttynum-64)); */
+  }
+*** kernel/syscall.s.orig	Thu Dec 26 00:54:11 1991
+--- kernel/system_call.s	Thu Dec 26 00:54:33 1991
+***************
+*** 58,64 ****
+  sa_flags = 8
+  sa_restorer = 12
+  
+! nr_system_calls = 72
+  
+  /*
+   * Ok, I get parallel printer interrupts while using the floppy for some
+--- 58,64 ----
+  sa_flags = 8
+  sa_restorer = 12
+  
+! nr_system_calls = 73
+  
+  /*
+   * Ok, I get parallel printer interrupts while using the floppy for some
+*** kernel/exit.c.orig	Mon Dec 16 13:37:26 1991
+--- kernel/exit.c	Fri Dec 27 13:21:40 1991
+***************
+*** 122,128 ****
+  	iput(current->executable);
+  	current->executable=NULL;
+  	if (current->leader && current->tty >= 0)
+! 		tty_table[current->tty].pgrp = 0;
+  	if (last_task_used_math == current)
+  		last_task_used_math = NULL;
+  	if (current->leader)
+--- 122,128 ----
+  	iput(current->executable);
+  	current->executable=NULL;
+  	if (current->leader && current->tty >= 0)
+! 		TTY_TABLE(current->tty)->pgrp = 0;
+  	if (last_task_used_math == current)
+  		last_task_used_math = NULL;
+  	if (current->leader)
+*** kernel/sched.c.orig	Wed Dec 25 02:02:35 1991
+--- kernel/sched.c	Fri Dec 27 13:21:40 1991
+***************
+*** 185,190 ****
+--- 185,223 ----
+  		tmp->state=0;
+  }
+  
++ void multi_interruptible_sleep_on(struct task_struct **p[], int nr)
++ {
++ 	int i,seen;
++ 	struct task_struct *tmp[NR_OPEN];
++ 	if (!p)
++ 		return;
++ 
++ 	if (current == &(init_task.task))
++ 		panic("task[0] trying to sleep");
++ 	if (nr>=NR_OPEN)
++ 		panic("too many tasks to sleep");
++ 	for (i=0; i<nr; i++)
++ 	{ tmp[i] = *(p[i]);
++ 	  *(p[i])=current;
++ 	}
++ repeat:	current->state = TASK_INTERRUPTIBLE;
++ 	schedule();
++ 	seen = 0;
++ 	for (i=0; i<nr; i++)
++ 		if (*(p[i]) && *(p[i])!= current) {
++ 			(**(p[i])).state=0;
++ 			seen = 1;
++ 		}
++ 		else
++ 		{ *(p[i])=NULL;
++ 		  if (tmp[i])
++ 			tmp[i]->state=0;
++ 		}
++ 	if (seen)
++ 		goto repeat;
++ }
++ 
++ 
+  void wake_up(struct task_struct **p)
+  {
+  	if (p && *p) {
+***************
+*** 304,310 ****
+--- 337,349 ----
+  
+  void do_timer(long cpl)
+  {
++ 	static int blanked = 0;
+  	extern int beepcount;
++ 	extern int blankcount;
++ 	extern int blankinterval;
++ 	extern void blank_screen(void);
++ 	extern void unblank_screen(void);
++ 
+  	extern void sysbeepstop(void);
+  
+  	if (beepcount)
+***************
+*** 311,316 ****
+--- 350,370 ----
+  		if (!--beepcount)
+  			sysbeepstop();
+  
++ 	if (blankcount)
++ 	{	blankcount--;
++ 		if (blanked)
++ 		{ if (blankcount == (blankinterval-1)) 
++ 	  	  { blanked = 0;
++ 	  	    unblank_screen(); 
++ 	  	  }  
++ 	  	}   
++ 	  	else
++ 	 	  if (!blankcount)
++ 		  { blanked = 1;
++ 		    blank_screen();
++ 		  }
++ 	}
++ 			
+  	if (cpl)
+  		current->utime++;
+  	else
+*** init/main.c.orig	Sun Dec 22 19:54:50 1991
+--- init/main.c	Mon Dec 23 09:33:02 1991
+***************
+*** 170,176 ****
+  	int pid,i;
+  
+  	setup((void *) &drive_info);
+! 	(void) open("/dev/tty0",O_RDWR,0);
+  	(void) dup(0);
+  	(void) dup(0);
+  	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
+--- 170,176 ----
+  	int pid,i;
+  
+  	setup((void *) &drive_info);
+! 	(void) open("/dev/tty1",O_RDWR,0);
+  	(void) dup(0);
+  	(void) dup(0);
+  	printf("%d buffers = %d bytes buffer space\n\r",NR_BUFFERS,
+***************
+*** 194,200 ****
+  		if (!pid) {
+  			close(0);close(1);close(2);
+  			setsid();
+! 			(void) open("/dev/tty0",O_RDWR,0);
+  			(void) dup(0);
+  			(void) dup(0);
+  			_exit(execve("/bin/sh",argv,envp));
+--- 194,200 ----
+  		if (!pid) {
+  			close(0);close(1);close(2);
+  			setsid();
+! 			(void) open("/dev/tty1",O_RDWR,0);
+  			(void) dup(0);
+  			(void) dup(0);
+  			_exit(execve("/bin/sh",argv,envp));
+*** lib/Makefile.orig	Thu Dec 26 09:18:12 1991
+--- lib/Makefile	Thu Dec 26 09:18:28 1991
+***************
+*** 25,31 ****
+  	-c -o $*.o $<
+  
+  OBJS  = ctype.o _exit.o open.o close.o errno.o write.o dup.o setsid.o \
+! 	execve.o wait.o string.o malloc.o
+  
+  lib.a: $(OBJS)
+  	$(AR) rcs lib.a $(OBJS)
+--- 25,31 ----
+  	-c -o $*.o $<
+  
+  OBJS  = ctype.o _exit.o open.o close.o errno.o write.o dup.o setsid.o \
+! 	execve.o wait.o string.o malloc.o select.o
+  
+  lib.a: $(OBJS)
+  	$(AR) rcs lib.a $(OBJS)
+*** fs/open.c.orig	Mon Dec 16 13:37:40 1991
+--- fs/open.c	Wed Dec 25 19:45:41 1991
+***************
+*** 164,170 ****
+  		if (MAJOR(inode->i_zone[0])==4) {
+  			if (current->leader && current->tty<0) {
+  				current->tty = MINOR(inode->i_zone[0]);
+! 				tty_table[current->tty].pgrp = current->pgrp;
+  			}
+  		} else if (MAJOR(inode->i_zone[0])==5)
+  			if (current->tty<0) {
+--- 164,170 ----
+  		if (MAJOR(inode->i_zone[0])==4) {
+  			if (current->leader && current->tty<0) {
+  				current->tty = MINOR(inode->i_zone[0]);
+! 				TTY_TABLE(current->tty)->pgrp = current->pgrp;
+  			}
+  		} else if (MAJOR(inode->i_zone[0])==5)
+  			if (current->tty<0) {
+*** fs/Makefile.orig	Wed Dec 25 19:08:17 1991
+--- fs/Makefile	Wed Dec 25 19:07:44 1991
+***************
+*** 17,23 ****
+  
+  OBJS=	open.o read_write.o inode.o file_table.o buffer.o super.o \
+  	block_dev.o char_dev.o file_dev.o stat.o exec.o pipe.o namei.o \
+! 	bitmap.o fcntl.o ioctl.o truncate.o
+  
+  fs.o: $(OBJS)
+  	$(LD) -r -o fs.o $(OBJS)
+--- 17,23 ----
+  
+  OBJS=	open.o read_write.o inode.o file_table.o buffer.o super.o \
+  	block_dev.o char_dev.o file_dev.o stat.o exec.o pipe.o namei.o \
+! 	bitmap.o fcntl.o ioctl.o truncate.o sel.o
+  
+  fs.o: $(OBJS)
+  	$(LD) -r -o fs.o $(OBJS)
+*** include/linux/tty.h.orig	Mon Dec 16 13:40:23 1991
+--- include/linux/tty.h	Thu Dec 26 11:57:39 1991
+***************
+*** 21,26 ****
+--- 21,35 ----
+  	char buf[TTY_BUF_SIZE];
+  };
+  
++ #define NR_SERIAL 2
++ #define NR_CONSOLES 4
++ #define NR_PTYS 2
++ #define NR_TTYS (NR_SERIAL+NR_CONSOLES+1+NR_PTYS*2)
++ #define FIRST_SERIAL_DEV 64
++ #define FIRST_PTY_MASTER_DEV 128
++ #define FIRST_PTY_SLAVE_DEV	192
++ #define TTY_TABLE(num) (_tty_lookup[num])
++ 
+  #define INC(a) ((a) = ((a)+1) & (TTY_BUF_SIZE-1))
+  #define DEC(a) ((a) = ((a)-1) & (TTY_BUF_SIZE-1))
+  #define EMPTY(a) ((a).head == (a).tail)
+***************
+*** 50,58 ****
+--- 59,70 ----
+  	struct tty_queue read_q;
+  	struct tty_queue write_q;
+  	struct tty_queue secondary;
++ 	int ttynum;
+  	};
+  
+  extern struct tty_struct tty_table[];
++ extern struct tty_queue *table_list[];
++ extern struct tty_struct *_tty_lookup[256];
+  
+  /*	intr=^C		quit=^|		erase=del	kill=^U
+  	eof=^D		vtime=\0	vmin=\1		sxtc=\0
+*** include/linux/sys.h.orig	Thu Dec 26 09:06:29 1991
+--- include/linux/sys.h	Wed Dec 25 19:18:09 1991
+***************
+*** 70,75 ****
+--- 70,76 ----
+  extern int sys_ssetmask();
+  extern int sys_setreuid();
+  extern int sys_setregid();
++ extern int sys_select();
+  
+  fn_ptr sys_call_table[] = { sys_setup, sys_exit, sys_fork, sys_read,
+  sys_write, sys_open, sys_close, sys_waitpid, sys_creat, sys_link,
+***************
+*** 83,86 ****
+  sys_lock, sys_ioctl, sys_fcntl, sys_mpx, sys_setpgid, sys_ulimit,
+  sys_uname, sys_umask, sys_chroot, sys_ustat, sys_dup2, sys_getppid,
+  sys_getpgrp, sys_setsid, sys_sigaction, sys_sgetmask, sys_ssetmask,
+! sys_setreuid,sys_setregid };
+--- 84,87 ----
+  sys_lock, sys_ioctl, sys_fcntl, sys_mpx, sys_setpgid, sys_ulimit,
+  sys_uname, sys_umask, sys_chroot, sys_ustat, sys_dup2, sys_getppid,
+  sys_getpgrp, sys_setsid, sys_sigaction, sys_sgetmask, sys_ssetmask,
+! sys_setreuid,sys_setregid, sys_select };
+*** include/sys/types.h.orig	Wed Dec 25 19:42:22 1991
+--- include/sys/types.h	Fri Dec 27 13:16:08 1991
+***************
+*** 43,46 ****
+--- 43,71 ----
+  	char f_fpack[6];
+  };
+  
++ #define	NBBY	8		/* number of bits in a byte */
++ 
++ /*
++  * Select uses bit masks of file descriptors in longs.
++  * These macros manipulate such bit fields (the filesystem macros use chars).
++  * FD_SETSIZE may be defined by the user, but the default here
++  * should be >= OPEN_MAX (limits.h).
++  */
++ #define	FD_SETSIZE	20
++ 
++ typedef long	fd_mask;
++ #define NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
++ 
++ #define	howmany(x, y)	(((x)+((y)-1))/(y))
++ 
++ 
++ typedef	struct fd_set {
++ 	fd_mask	fds_bits[howmany(FD_SETSIZE, NFDBITS)];
++ } fd_set;
++ #define bzero(ptr,size) memset(ptr,0,size)
++ #define	FD_SET(n, p)	((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
++ #define	FD_CLR(n, p)	((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
++ #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
++ #define FD_ZERO(p)	bzero((char *)(p), sizeof(*(p)))
++ 
+  #endif
+*** include/time.h.orig	Wed Dec 25 19:49:13 1991
+--- include/time.h	Wed Dec 25 19:49:38 1991
+***************
+*** 27,32 ****
+--- 27,37 ----
+  	int tm_isdst;
+  };
+  
++ struct timeval {
++ 	long tv_sec;
++ 	long tv_usec;
++ };
++ 
+  clock_t clock(void);
+  time_t time(time_t * tp);
+  double difftime(time_t time2, time_t time1);
+*** include/unistd.h.orig	Wed Dec 25 19:13:21 1991
+--- include/unistd.h	Wed Dec 25 22:06:52 1991
+***************
+*** 53,58 ****
+--- 53,59 ----
+  #include <sys/stat.h>
+  #include <sys/times.h>
+  #include <sys/utsname.h>
++ #include <time.h>
+  #include <utime.h>
+  
+  #ifdef __LIBRARY__
+***************
+*** 129,134 ****
+--- 130,136 ----
+  #define __NR_ssetmask	69
+  #define __NR_setreuid	70
+  #define __NR_setregid	71
++ #define __NR_select	72
+  
+  #define _syscall0(type,name) \
+  type name(void) \
+***************
+*** 249,253 ****
+--- 251,257 ----
+  int getppid(void);
+  pid_t getpgrp(void);
+  pid_t setsid(void);
++ #include <time.h>
++ int select(int nf, fd_set *in, fd_set *out, fd_set *ex, struct timeval *tv );
+  
+  #endif
+*** Makefile.orig	Tue Dec 24 23:15:59 1991
+--- Makefile	Tue Dec 24 23:32:15 1991
+***************
+*** 85,90 ****
+--- 85,96 ----
+  	$(AS86) -o boot/setup.o boot/setup.s
+  	$(LD86) -s -o boot/setup boot/setup.o
+  
++ boot/setup.s:	boot/setup.S include/linux/config.h
++ 	$(CPP) -traditional boot/setup.S -o boot/setup.s
++ 
++ boot/bootsect.s:	boot/bootsect.S include/linux/config.h
++ 	$(CPP) -traditional boot/bootsect.S -o boot/bootsect.s
++ 
+  boot/bootsect:	boot/bootsect.s
+  	$(AS86) -o boot/bootsect.o boot/bootsect.s
+  	$(LD86) -s -o boot/bootsect boot/bootsect.o
+***************
+*** 95,101 ****
+  	cat boot/bootsect.s >> tmp.s
+  
+  clean:
+! 	rm -f Image System.map tmp_make core boot/bootsect boot/setup
+  	rm -f init/*.o tools/system tools/build boot/*.o
+  	(cd mm;make clean)
+  	(cd fs;make clean)
+--- 101,108 ----
+  	cat boot/bootsect.s >> tmp.s
+  
+  clean:
+! 	rm -f Image System.map tmp_make core boot/bootsect boot/setup \
+! 		boot/setup.s
+  	rm -f init/*.o tools/system tools/build boot/*.o
+  	(cd mm;make clean)
+  	(cd fs;make clean)
+*** boot/setup.s.orig	Tue Dec 24 17:44:51 1991
+--- boot/setup.S	Tue Dec 24 23:49:32 1991
+***************
+*** 13,22 ****
+  !
+  
+  ! NOTE! These had better be the same as in bootsect.s!
+  
+! INITSEG  = 0x9000	! we move boot here - out of the way
+! SYSSEG   = 0x1000	! system loaded at 0x10000 (65536).
+! SETUPSEG = 0x9020	! this is the current segment
+  
+  .globl begtext, begdata, begbss, endtext, enddata, endbss
+  .text
+--- 13,23 ----
+  !
+  
+  ! NOTE! These had better be the same as in bootsect.s!
++ #include <linux/config.h>
+  
+! INITSEG  = DEF_INITSEG	! we move boot here - out of the way
+! SYSSEG   = DEF_SYSSEG	! system loaded at 0x10000 (65536).
+! SETUPSEG = DEF_SETUPSEG	! this is the current segment
+  
+  .globl begtext, begdata, begbss, endtext, enddata, endbss
+  .text
+***************
+*** 61,67 ****
+  	mov	[8],ax
+  	mov	[10],bx
+  	mov	[12],cx
+! 
+  ! Get hd0 data
+  
+  	mov	ax,#0x0000
+--- 62,76 ----
+  	mov	[8],ax
+  	mov	[10],bx
+  	mov	[12],cx
+! 	
+! #ifdef VIDEO_VGA_50_LINES	
+!  	mov	ax,#0x0003
+!  	int	0x10
+!  	
+!  	mov	ax,#0x1112
+!  	mov	bx,#0x0000
+!  	int	0x10
+! #endif
+  ! Get hd0 data
+  
+  	mov	ax,#0x0000

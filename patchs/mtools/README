@@ -1,0 +1,16 @@
+The following patches are relative to mtools-2.0 patchlevel 4.
+They correct some minor bugs (flushing stdout) and allow you to work with
+BIGDOS partitions.
+It is also necessary
+- to correct the wrong ctype.h (tolower/toupper)
+- to change in include/linux/fs.h in struct buffer_head b_blocknr from
+  unsigned short to unsigned int and recompile the kernel.
+
+If you want the 'strange' floppy formats (see devices.c) you must also
+apply the patches to kernel/blk_drv/floppy.c. Old ATARI-ST users might
+lke that.
+
+			Wolfgang Thiel
+
+			upsyf173@comparex.hrz.uni-bielefeld.de
+

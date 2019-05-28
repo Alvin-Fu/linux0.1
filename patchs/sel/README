@@ -1,0 +1,30 @@
+Here is an an implementation of the select system call adapted 
+for Linux 0.11.  I have done only rudimentary testing on it,
+but decided to post it, not because I expect too many people will
+want to use it immediately, but rather to get some feedback.
+
+Unfortunately, there are no test programs included.
+If someone wants to write some test programs, or better still,
+knows where to get ahold of some already written, that would
+be great.
+
+Myself, I am still trying to size up pseudo ttys, and would 
+rather devote time to that.
+
+ 
+WARNING:  Both the VC patches and this one patch kernel/sched.c
+But this shouldn't cause any problems.
+
+How to use it:
+
+  0) Backup your system
+
+  1) move select.c to lib/
+
+  2) move sel.c to fs/
+
+  3) patch -p0 < sel.cdif
+
+  4) remake
+
+  5) reboot

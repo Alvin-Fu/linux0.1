@@ -1,0 +1,134 @@
+Following are patches to allow Linux to have Virtual Consoles.
+These patches are to be applied against version 0.11.
+
+For those not in the know, VCs allow swapping screen images
+with just the touch of a function key, between virtual sessions.
+
+Also, support for VT100 graphics chars has been added, at least
+enough to use the VAX full screen debugger.
+
+This patch also provides screen blanking for Virtual Consoles with linux.
+In effect, we get this for free, since VC already allocates a buffer
+per console tty, one of which (the currently actives one) wasn't
+being used anyways.  The blanker simply uses this buffer, and
+copys blanks to the real screen buffer.
+
+By default, blanking will be disabled at bootup time.  To enable it,
+use 
+
+  setterm -blank n
+
+where n is a number between 0 and 60.  Setting it to zero disables
+it again.  I usually use the number 10, meaning 10 minutes.
+This has already been added to startcons for you. 
+
+VC comes configure to use 25 line mode.  If you have a VGA, and you 
+want to use 50 line mode, then in include/linux/config.h, uncomment:
+
+	#define VIDEO_VGA_50_LINES
+
+Also move setup.s to setup.S before applying the patch.
+Me, I like 50 lines, even with virtual console (claustaphobia).
+
+As someone noted, don't forget to change SYSSIZE to 0x3000 in build.c.
+
+Before you go any further, this has been tested on only mine and
+a few brave souls machines!  Through this door, you enter the world 
+of BETA land.
+
+-----------------------------------------------------------------
+
+The steps are:
+
+  0 - Backup your system and move boot/setup.s to boot/setup.S.
+
+  1 - Apply patches:  move lvc.cdif to your source directory /usr/src
+	or whatever.  kernel, fs, init, and include must be right
+	below this.  Now:
+		
+		patch -p0 < lvc.cdif
+		
+      Move sel.c to fs and select.c to lib.		
+
+  2 - If you want to use 50 lines (as above), edit include/linux/config.h now.
+	Also make sure the supplied termcap entry is in /etc.
+	Also, I change TERM=console50 in my .profile.
+
+  3 - Recompile
+
+  4 - Compile setterm.c and and doshell.c and put executables in
+	/usr/local/bin
+
+  5 - Assuming that you already have tty1 and tty2 done, the additional
+	ttys can be created by executing the domknod script.
+
+  6 - Reboot with the new Image.
+
+  7 - chmod u+x startcons, and move to /etc
+
+  8 - Execute startcons
+
+  9 - If you were using serial ports before (tty1/tty2) they
+	are now renamed to tty64/tty65. 
+
+You should now have four virtual consoles, selectable with F1-F4.
+If you want, you can modify NR_CONSOLES in include/linux/tty.h
+to an appropriate value and recompile.  With this implementation,
+12 is the limit since there is no toggle key.  But more than 11
+means no dumping processes.  
+
+
+Technical notes.
+
+  The ttys are changed: tty0 is always the current window, while
+  ttyn is virtual terminal n selected with function key Fn.
+  tty64/tty65 are now the serial ports.
+  Startcons can be started from /etc/rc, but TERM=dumb.
+
+Problems/Issues:
+
+     Function keys escape sequences were not being caught by console
+     (even before my patches), and resulted in characters and beeping.
+     Therefore, I have disabled their interpretation in keyboard.S.
+     Assembler is not my bag, and I don't know why keystrokes, which
+     are infrequent events, need to be handled in assembler.
+
+     Leds and caps/num locks are not saved/restored currently.
+
+     Setterm sets the interval by writing out an escape sequence
+     to the console.  I do not know what all the valid sequences
+     could be, so I selected one linux currently does not use.
+     Namely "^[[X;Y;Zl".  That is escape, open square, a number X
+     between 0 and 60 and the lowercase letter L.  The numbers Y and
+     Z are X+13 and X+17 respectively, and serve as check numbers 
+     since if some program were to output the sequence to your screen, 
+     the blank time would be changed.  This makes it unlikely to 
+     happen unintentionally.
+
+     Blank is called by do_timer.  It is possible, that output could
+     be going to the screen just as it is blanked, in which case
+     characters could be lost (at least I hope that is the worst that
+     could happen).  But since blanking usually only occurs during
+     periods of console inactivity, the danger of this is low.
+     I have added a check to see if in con_write, but that may
+     not work %100.
+
+     Select is not really well tested, and ptys even less so.  But
+     by including them now, complete redesigns may be avoided.
+     Two ptys are allocated, so just patching and recompiling one
+     or two files (tty_io.c) should allow testing and devolopment.
+
+
+Acknowledgement:
+ 
+  Gordon Irlam of course, for the original.
+  Matthias Lautner, for select and pty designs.
+
+
+
+
+********************************************************************
+
+pmacdona@sol.uvic.ca
+Peter.MacDonald@bcsystems.gov.bc.ca
+

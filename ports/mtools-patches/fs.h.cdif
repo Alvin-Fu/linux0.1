@@ -1,0 +1,19 @@
+*** fs.h.10	Fri Nov 15 00:32:38 1991
+--- fs.h	Fri Nov 15 00:33:01 1991
+***************
+*** 67,73 ****
+  struct buffer_head {
+  	char * b_data;			/* pointer to data block (1024 bytes) */
+  	unsigned short b_dev;		/* device (0 = free) */
+! 	unsigned short b_blocknr;	/* block number */
+  	unsigned char b_uptodate;
+  	unsigned char b_dirt;		/* 0-clean,1-dirty */
+  	unsigned char b_count;		/* users using this block */
+--- 67,73 ----
+  struct buffer_head {
+  	char * b_data;			/* pointer to data block (1024 bytes) */
+  	unsigned short b_dev;		/* device (0 = free) */
+! 	unsigned int b_blocknr;	/* block number */
+  	unsigned char b_uptodate;
+  	unsigned char b_dirt;		/* 0-clean,1-dirty */
+  	unsigned char b_count;		/* users using this block */

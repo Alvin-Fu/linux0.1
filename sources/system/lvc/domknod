@@ -1,0 +1,4 @@
+mknod /dev/tty3 c 4 3
+mknod /dev/tty4 c 4 4
+mknod /dev/tty64 c 4 64
+mknod /dev/tty65 c 4 65

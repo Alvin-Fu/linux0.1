@@ -1,0 +1,11 @@
+/usr/local/bin/doshell /dev/tty2 /bin/sh &
+/usr/local/bin/doshell /dev/tty3 /bin/sh &
+/usr/local/bin/doshell /dev/tty4 /bin/sh &
+/usr/local/bin/setterm -term console -foreground black -background cyan \
+ -store -blank 10 -clear rest > /dev/tty1
+/usr/local/bin/setterm -term console -foreground white -background blue \
+ -store  -clear all > /dev/tty2
+/usr/local/bin/setterm -term console -foreground blue -background cyan \
+ -store  -clear all > /dev/tty3
+/usr/local/bin/setterm -term console -foreground cyan -background blue \
+ -store  -clear all > /dev/tty4

@@ -1,0 +1,37 @@
+mknod /dev/ttyp0 c 4 128
+mknod /dev/ttyp1 c 4 129
+mknod /dev/ttyp2 c 4 130
+mknod /dev/ttyp3 c 4 131
+mknod /dev/ttyp4 c 4 132
+mknod /dev/ttyp5 c 4 133
+mknod /dev/ttyp6 c 4 134
+mknod /dev/ttyp7 c 4 135
+mknod /dev/ttyp8 c 4 136
+mknod /dev/ttyp9 c 4 137
+mknod /dev/ttypa c 4 138
+mknod /dev/ttypb c 4 139
+mknod /dev/ttypc c 4 140
+mknod /dev/ttypd c 4 141
+mknod /dev/ttype c 4 142
+mknod /dev/ttypf c 4 143
+
+mknod /dev/ptyp0 c 4 192
+mknod /dev/ptyp1 c 4 193
+mknod /dev/ptyp2 c 4 194
+mknod /dev/ptyp3 c 4 195
+mknod /dev/ptyp4 c 4 196
+mknod /dev/ptyp5 c 4 197
+mknod /dev/ptyp6 c 4 198
+mknod /dev/ptyp7 c 4 199
+mknod /dev/ptyp8 c 4 200
+mknod /dev/ptyp9 c 4 201
+mknod /dev/ptypa c 4 202
+mknod /dev/ptypb c 4 203
+mknod /dev/ptypc c 4 204
+mknod /dev/ptypd c 4 205
+mknod /dev/ptype c 4 206
+mknod /dev/ptypf c 4 207
+
+chmod 666 /dev/ptyp*
+chmod 666 /dev/ttyp*
+

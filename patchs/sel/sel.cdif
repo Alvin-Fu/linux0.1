@@ -1,0 +1,206 @@
+*** include/linux/sys.h.orig	Thu Dec 26 09:06:29 1991
+--- include/linux/sys.h	Wed Dec 25 19:18:09 1991
+***************
+*** 70,75 ****
+--- 70,76 ----
+  extern int sys_ssetmask();
+  extern int sys_setreuid();
+  extern int sys_setregid();
++ extern int sys_select();
+  
+  fn_ptr sys_call_table[] = { sys_setup, sys_exit, sys_fork, sys_read,
+  sys_write, sys_open, sys_close, sys_waitpid, sys_creat, sys_link,
+***************
+*** 83,86 ****
+  sys_lock, sys_ioctl, sys_fcntl, sys_mpx, sys_setpgid, sys_ulimit,
+  sys_uname, sys_umask, sys_chroot, sys_ustat, sys_dup2, sys_getppid,
+  sys_getpgrp, sys_setsid, sys_sigaction, sys_sgetmask, sys_ssetmask,
+! sys_setreuid,sys_setregid };
+--- 84,87 ----
+  sys_lock, sys_ioctl, sys_fcntl, sys_mpx, sys_setpgid, sys_ulimit,
+  sys_uname, sys_umask, sys_chroot, sys_ustat, sys_dup2, sys_getppid,
+  sys_getpgrp, sys_setsid, sys_sigaction, sys_sgetmask, sys_ssetmask,
+! sys_setreuid,sys_setregid, sys_select };
+*** lib/Makefile.orig	Thu Dec 26 09:18:12 1991
+--- lib/Makefile	Thu Dec 26 09:18:28 1991
+***************
+*** 25,31 ****
+  	-c -o $*.o $<
+  
+  OBJS  = ctype.o _exit.o open.o close.o errno.o write.o dup.o setsid.o \
+! 	execve.o wait.o string.o malloc.o
+  
+  lib.a: $(OBJS)
+  	$(AR) rcs lib.a $(OBJS)
+--- 25,31 ----
+  	-c -o $*.o $<
+  
+  OBJS  = ctype.o _exit.o open.o close.o errno.o write.o dup.o setsid.o \
+! 	execve.o wait.o string.o malloc.o select.o
+  
+  lib.a: $(OBJS)
+  	$(AR) rcs lib.a $(OBJS)
+*** fs/Makefile.orig	Wed Dec 25 19:08:17 1991
+--- fs/Makefile	Wed Dec 25 19:07:44 1991
+***************
+*** 17,23 ****
+  
+  OBJS=	open.o read_write.o inode.o file_table.o buffer.o super.o \
+  	block_dev.o char_dev.o file_dev.o stat.o exec.o pipe.o namei.o \
+! 	bitmap.o fcntl.o ioctl.o truncate.o
+  
+  fs.o: $(OBJS)
+  	$(LD) -r -o fs.o $(OBJS)
+--- 17,23 ----
+  
+  OBJS=	open.o read_write.o inode.o file_table.o buffer.o super.o \
+  	block_dev.o char_dev.o file_dev.o stat.o exec.o pipe.o namei.o \
+! 	bitmap.o fcntl.o ioctl.o truncate.o sel.o
+  
+  fs.o: $(OBJS)
+  	$(LD) -r -o fs.o $(OBJS)
+*** include/sys/types.h.orig	Wed Dec 25 19:42:22 1991
+--- include/sys/types.h	Wed Dec 25 19:43:52 1991
+***************
+*** 43,46 ****
+--- 43,71 ----
+  	char f_fpack[6];
+  };
+  
++ #define	NBBY	8		/* number of bits in a byte */
++ 
++ /*
++  * Select uses bit masks of file descriptors in longs.
++  * These macros manipulate such bit fields (the filesystem macros use chars).
++  * FD_SETSIZE may be defined by the user, but the default here
++  * should be >= OPEN_MAX (limits.h).
++  */
++ #define	FD_SETSIZE	20
++ 
++ typedef long	fd_mask;
++ #define NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
++ 
++ #define	howmany(x, y)	(((x)+((y)-1))/(y))
++ 
++ 
++ typedef	struct fd_set {
++ 	fd_mask	fds_bits[howmany(FD_SETSIZE, NFDBITS)];
++ } fd_set;
++ 
++ #define	FD_SET(n, p)	((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
++ #define	FD_CLR(n, p)	((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
++ #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
++ #define FD_ZERO(p)	bzero((char *)(p), sizeof(*(p)))
++ 
+  #endif
+*** include/time.h.orig	Wed Dec 25 19:49:13 1991
+--- include/time.h	Wed Dec 25 19:49:38 1991
+***************
+*** 27,32 ****
+--- 27,37 ----
+  	int tm_isdst;
+  };
+  
++ struct timeval {
++ 	long tv_sec;
++ 	long tv_usec;
++ };
++ 
+  clock_t clock(void);
+  time_t time(time_t * tp);
+  double difftime(time_t time2, time_t time1);
+*** include/unistd.h.orig	Wed Dec 25 19:13:21 1991
+--- include/unistd.h	Wed Dec 25 22:06:52 1991
+***************
+*** 53,58 ****
+--- 53,59 ----
+  #include <sys/stat.h>
+  #include <sys/times.h>
+  #include <sys/utsname.h>
++ #include <time.h>
+  #include <utime.h>
+  
+  #ifdef __LIBRARY__
+***************
+*** 129,134 ****
+--- 130,136 ----
+  #define __NR_ssetmask	69
+  #define __NR_setreuid	70
+  #define __NR_setregid	71
++ #define __NR_select	72
+  
+  #define _syscall0(type,name) \
+  type name(void) \
+***************
+*** 249,253 ****
+--- 251,257 ----
+  int getppid(void);
+  pid_t getpgrp(void);
+  pid_t setsid(void);
++ #include <time.h>
++ int select(int nf, fd_set *in, fd_set *out, fd_set *ex, struct timeval *tv );
+  
+  #endif
+*** kernel/syscall.s.orig	Thu Dec 26 00:54:11 1991
+--- kernel/system_call.s	Thu Dec 26 00:54:33 1991
+***************
+*** 58,64 ****
+  sa_flags = 8
+  sa_restorer = 12
+  
+! nr_system_calls = 72
+  
+  /*
+   * Ok, I get parallel printer interrupts while using the floppy for some
+--- 58,64 ----
+  sa_flags = 8
+  sa_restorer = 12
+  
+! nr_system_calls = 73
+  
+  /*
+   * Ok, I get parallel printer interrupts while using the floppy for some
+*** kernel/sched.c.orig	Wed Dec 25 02:02:35 1991
+--- kernel/sched.c	Wed Dec 25 19:58:14 1991
+***************
+*** 185,190 ****
+--- 185,223 ----
+  		tmp->state=0;
+  }
+  
++ void multi_interruptible_sleep_on(struct task_struct **p[], int nr)
++ {
++ 	int i,seen;
++ 	struct task_struct *tmp[NR_OPEN];
++ 	if (!p)
++ 		return;
++ 
++ 	if (current == &(init_task.task))
++ 		panic("task[0] trying to sleep");
++ 	if (nr>=NR_OPEN)
++ 		panic("too many tasks to sleep");
++ 	for (i=0; i<nr; i++)
++ 	{ tmp[i] = *(p[i]);
++ 	  *(p[i])=current;
++ 	}
++ repeat:	current->state = TASK_INTERRUPTIBLE;
++ 	schedule();
++ 	seen = 0;
++ 	for (i=0; i<nr; i++)
++ 		if (*(p[i]) && *(p[i])!= current) {
++ 			(**(p[i])).state=0;
++ 			seen = 1;
++ 		}
++ 		else
++ 		{ *(p[i])=NULL;
++ 		  if (tmp[i])
++ 			tmp[i]->state=0;
++ 		}
++ 	if (seen)
++ 		goto repeat;
++ }
++ 
++ 
+  void wake_up(struct task_struct **p)
+  {
+  	if (p && *p) {

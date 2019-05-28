@@ -1,0 +1,264 @@
+
+
+
+MAKE(1L)               LOCAL USER COMMANDS               MAKE(1L)
+
+
+
+NAME
+     make - GNU make utility to maintain groups of programs
+
+SYNOPSIS
+     make [ -f makefile ] [ option ] ...  target ...
+
+WARNING
+     This man paage is an extract of  the  documentation  of  _G_N_U
+     _m_a_k_e . It is updated only occasionally, because the GNU pro-
+     ject does not use nroff.  For complete,  current  documenta-
+     tion,  refer  to the Info file make or the DVI file make.dvi
+     which are made from the Texinfo source file make.texinfo.
+
+DESCRIPTION
+     The purpose of the _m_a_k_e utility is  to  determine  automati-
+     cally which pieces of a large program need to be recompiled,
+     and issue the  commands  to  recompile  them.   This  manual
+     describes  the GNU implementation of _m_a_k_e, which was written
+     by Richard Stallman and Roland McGrath.  Our examples show C
+     programs,  since  they are most common, but you can use _m_a_k_e
+     with any programming language whose compiler can be run with
+     a  shell command.  In fact, _m_a_k_e is not limited to programs.
+     You can use it to describe any task where some files must be
+     updated   automatically  from  others  whenever  the  others
+     change.
+
+     To prepare to use _m_a_k_e, you must write  a  file  called  the
+     _m_a_k_e_f_i_l_e  that  describes  the  relationships among files in
+     your program, and the states the commands for updating  each
+     file.   In  a  program,  typically  the  executable  file is
+     updated from object files, which are in turn made by compil-
+     ing source files.
+
+     Once a suitable makefile exists, each time you  change  some
+     source files, this simple shell command:
+
+          make
+
+     suffices to perform all necessary recompilations.  The  _m_a_k_e
+     program   uses   the   makefile  data  base  and  the  last-
+     modification times of the files to decide which of the files
+     need  to be updated.  For each of those files, it issues the
+     commands recorded in the data base.
+
+     _m_a_k_e executes commands in the _m_a_k_e_f_i_l_e to update one or more
+     target  _n_a_m_e_s,  where _n_a_m_e is typically a program.  If no -f
+     option is present, _m_a_k_e will look  for  the  makefiles  _G_N_U_-
+     _m_a_k_e_f_i_l_e, _m_a_k_e_f_i_l_e, and _M_a_k_e_f_i_l_e, in that order.
+
+     Normally you should call your makefile  either  _m_a_k_e_f_i_l_e  or
+     _M_a_k_e_f_i_l_e.   (We  recommend _M_a_k_e_f_i_l_e because it appears prom-
+     inently near the beginning of  a  directory  listing,  right
+
+
+
+GNU                Last change: 22 August 1989                  1
+
+
+
+
+
+
+MAKE(1L)               LOCAL USER COMMANDS               MAKE(1L)
+
+
+
+     near  other  important files such as _R_E_A_D_M_E.) The first name
+     checked, _G_N_U_m_a_k_e_f_i_l_e, is not recommended for most makefiles.
+     You  should  use  this  name  if you have a makefile that is
+     specific to GNU _m_a_k_e, and will not be  understood  by  other
+     versions of _m_a_k_e.  If _m_a_k_e_f_i_l_e is `-', the standard input is
+     read.
+
+     _m_a_k_e updates a target if it depends  on  prerequisite  files
+     that  have been modified since the target was last modified,
+     or if the target does not exist.
+
+OPTIONS
+     -b
+
+     -m   These options are ignored for compatibility with  other
+          versions of _m_a_k_e.
+
+     -C _d_i_r
+          Change to directory _d_i_r before reading the makefiles or
+          doing anything else.  If multiple -C options are speci-
+          fied, each is interpreted relative to the previous one:
+          -C  /  -C  etc is equivalent to -C /etc.  This is typi-
+          cally used with recursive invocations of _m_a_k_e.
+
+     -d   Print debugging information in addition to normal  pro-
+          cessing.   The  debugging  information says which files
+          are being considered for remaking, which file-times are
+          being compared and with what results, which files actu-
+          ally need to be remade, which implicit rules  are  con-
+          sidered  and which are applied---everything interesting
+          about how _m_a_k_e decides what to do.
+
+     -f _f_i_l_e
+          Use _f_i_l_e _a_s _a _m_a_k_e_f_i_l_e.
+
+     -i   Ignore all errors in commands executed to remake files.
+
+     -I _d_i_r
+          Specifies  a  directory  _d_i_r  to  search  for  included
+          makefiles.   If  several -I options are used to specify
+          several directories, the directories  are  searched  in
+          the  order  specified.   Unlike  the arguments to other
+          flags of _m_a_k_e, directories given with -I flags may come
+          directly  after  the flag: -I_d_i_r is allowed, as well as
+          -I _d_i_r.  This syntax is allowed for compatibility  with
+          the C preprocessor's -I flag.
+
+     -j _j_o_b_s
+          Specifies the number of jobs (commands) to  run  simul-
+          taneously.   If  there  is more than one -j option, the
+          last one is effective.   If  the  -j  option  is  given
+          without  an argument, _m_a_k_e will not limit the number of
+
+
+
+GNU                Last change: 22 August 1989                  2
+
+
+
+
+
+
+MAKE(1L)               LOCAL USER COMMANDS               MAKE(1L)
+
+
+
+          jobs that can run simultaneously.
+
+     -k   Continue as much as possible after an error.  While the
+          target that failed, and those that depend on it, cannot
+          be remade, the other dependencies of these targets  can
+          be processed all the same.
+
+     -l
+
+     -l _l_o_a_d
+          Specifies that no new jobs (commands) should be started
+          if  there  are others jobs running and the load average
+          is at least _l_o_a_d (a floating-point  number).   With  no
+          argument, removes a previous load limit.
+
+     -n   Print the commands that would be executed, but  do  not
+          execute them.
+
+     -o _f_i_l_e
+          Do not remake the file _f_i_l_e even if it  is  older  than
+          its dependencies, and do not remake anything on account
+          of changes in _f_i_l_e.  Essentially the file is treated as
+          very old and its rules are ignored.
+
+     -p   Print the data base (rules and  variable  values)  that
+          results  from  reading  the  makefiles; then execute as
+          usual or as otherwise specified.  This also prints  the
+          version information given by the -v switch (see below).
+          To print the data base without  trying  to  remake  any
+          files, use make -p -f/_d_e_v/_n_u_l_l.
+
+     -q   ``Question mode''.  Do not run any commands,  or  print
+          anything;  just  return  an exit status that is zero if
+          the specified targets are already up to  date,  nonzero
+          otherwise.
+
+     -r   Eliminate use of the  built-in  implicit  rules.   Also
+          clear  out  the  default  list  of  suffixes for suffix
+          rules.
+
+     -s   Silent operation; do not print the commands as they are
+          executed.
+
+     -S   Cancel the effect of the  -k  option.   This  is  never
+          necessary  except in a recursive _m_a_k_e where -k might be
+          inherited from the top-level _m_a_k_e via MAKEFLAGS  or  if
+          you set -k in MAKEFLAGS in your environment.
+
+     -t   Touch files (mark them up to date without really chang-
+          ing  them)  instead of running their commands.  This is
+          used to pretend that the commands were done,  in  order
+          to fool future invocations of _m_a_k_e.
+
+
+
+GNU                Last change: 22 August 1989                  3
+
+
+
+
+
+
+MAKE(1L)               LOCAL USER COMMANDS               MAKE(1L)
+
+
+
+     -v   Print the version of the _m_a_k_e program plus a copyright,
+          a  list  of  authors and a notice that there is no war-
+          ranty.  After this information is  printed,  processing
+          continues  normally.   To  get this information without
+          doing anything else, use make -v -f/_d_e_v/_n_u_l_l.
+
+     -w   Print a message containing the working directory before
+          and  after before and after other processing.  This may
+          be useful for tracking  down  errors  from  complicated
+          nests of recursive _m_a_k_e commands.
+
+     -W _f_i_l_e
+          Pretend that the target _f_i_l_e has  just  been  modified.
+          When  used  with the -n flag, this shows you what would
+          happen if you were to modify that file.  Without -n, it
+          is  almost  the  same as running a _t_o_u_c_h command on the
+          given file before running _m_a_k_e, except that the modifi-
+          cation time is changed only in the imagination of _m_a_k_e.
+
+SEE ALSO
+     /usr/local/doc/gnumake.dvi
+                         _T_h_e _G_N_U _M_a_k_e _M_a_n_u_a_l
+
+BUGS
+     See the chapter `Problems and Bugs' in _T_h_e _G_N_U _M_a_k_e _M_a_n_u_a_l .
+
+AUTHOR
+     This manual page contributed by  Dennis  Morse  of  Stanford
+     University.  It has been reworked by Roland McGrath.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GNU                Last change: 22 August 1989                  4
+
+
+

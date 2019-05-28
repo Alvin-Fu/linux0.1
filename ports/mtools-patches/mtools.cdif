@@ -1,0 +1,272 @@
+*** Makefile.20	Fri Nov 15 16:51:21 1991
+--- Makefile	Fri Nov 15 17:20:14 1991
+***************
+*** 3,12 ****
+  #
+  # check the Configure file for some examples of device-specific setups
+  # Berkeley flavors of Unix should include -DBSD in the CFLAGS
+! 
+  CFLAGS	= -O
+  LDFLAGS	= -s
+! LD	= cc
+  LINT	= lint
+  SHLIB	=
+  SHAR	= shar -a
+--- 3,12 ----
+  #
+  # check the Configure file for some examples of device-specific setups
+  # Berkeley flavors of Unix should include -DBSD in the CFLAGS
+! CC = gcc
+  CFLAGS	= -O
+  LDFLAGS	= -s
+! LD	= gcc
+  LINT	= lint
+  SHLIB	=
+  SHAR	= shar -a
+*** init.c.20	Fri Nov 15 16:51:10 1991
+--- init.c	Fri Nov 15 17:29:32 1991
+***************
+*** 10,15 ****
+--- 10,16 ----
+  
+  #define FULL_CYL
+  #define WORD(x) ((boot->x)[0] + ((boot->x)[1] << 8))
++ #define LONG(xlow,xhigh)	((WORD(xhigh)<<16)|WORD(xlow))
+  
+  unsigned int num_clus;			/* total number of cluster */
+  int num_fat;				/* the number of FAT tables */
+***************
+*** 50,55 ****
+--- 51,57 ----
+  	}
+  	if (!dev->drive) {
+  		fprintf(stderr, "Drive '%c:' not supported\n", drive);
++ 		dev_info();
+  		return(1);
+  	}
+  					/* open the device */
+***************
+*** 59,65 ****
+--- 61,69 ----
+  
+  		name = expand(dev->name);
+  		if ((fd = open(name, mode | dev->mode)) < 0) {
++ 			fprintf(stderr, "%s\n", name);
+  			perror("init: open");
++ 			dev_info();
+  			exit(1);
+  		}
+  					/* set default parameters, if needed */
+***************
+*** 75,81 ****
+--- 79,90 ----
+  		heads = WORD(nheads);
+  		sectors = WORD(nsect);
+  		if (heads && sectors)
++ 		{
++ 		  if (WORD(psect))
+  			tracks = WORD(psect) / (unsigned) (heads * sectors);
++ 		  else
++ 			tracks = LONG(xlow,xhigh) / (unsigned) (heads * sectors);
++ 		}
+  
+  					/* sanity checking */
+  		old_dos = 0;
+***************
+*** 156,161 ****
+--- 165,171 ----
+  	if (fd == -1) {
+  		if (boot != NULL && dev->tracks)
+  			fprintf(stderr, "No support for %d tracks, %d heads, %d sector diskettes\n", tracks, heads, sectors);
++ 		dev_info();
+  		return(1);
+  	}
+  					/* set new parameters, if needed */
+***************
+*** 177,183 ****
+  		fat_len = WORD(fatlen);
+  		dir_start = fat_start + (boot->nfat * fat_len);
+  		dir_len = WORD(dirents) * MDIR_SIZE / (unsigned) MSECTOR_SIZE;
+! 		num_clus = (unsigned int) (WORD(psect) - dir_start - dir_len) / clus_size;
+  		num_fat = boot->nfat;
+  	}
+  fprintf(stderr, "tracks=%d, heads=%d, sectors=%d, clus_size=%d, fat_start=%d, fat_len=%d, dir_start=%d, dir_len=%d, num_clus=%d, num_fat=%d\n", tracks, heads, sectors, clus_size, fat_start, fat_len, dir_start, dir_len, num_clus, num_fat);
+--- 187,196 ----
+  		fat_len = WORD(fatlen);
+  		dir_start = fat_start + (boot->nfat * fat_len);
+  		dir_len = WORD(dirents) * MDIR_SIZE / (unsigned) MSECTOR_SIZE;
+! 		if (WORD(psect))
+! 			num_clus = (unsigned int) (WORD(psect) - dir_start - dir_len) / clus_size;
+! 		else
+! 			num_clus = (unsigned int) (LONG(xlow,xhigh) - dir_start - dir_len) / clus_size;
+  		num_fat = boot->nfat;
+  	}
+  fprintf(stderr, "tracks=%d, heads=%d, sectors=%d, clus_size=%d, fat_start=%d, fat_len=%d, dir_start=%d, dir_len=%d, num_clus=%d, num_fat=%d\n", tracks, heads, sectors, clus_size, fat_start, fat_len, dir_start, dir_len, num_clus, num_fat);
+***************
+*** 187,192 ****
+--- 200,206 ----
+  		fprintf(stderr, "Cluster size of %d is larger than max of %d\n", clus_size * MSECTOR_SIZE, MAX_CLUSTER);
+  		close(fd);
+  		fd = -1;
++ 		dev_info();
+  		return(1);
+  	}
+  	if (!old_dos && WORD(secsiz) != MSECTOR_SIZE) {
+***************
+*** 193,198 ****
+--- 207,213 ----
+  		fprintf(stderr, "Sector size of %d is not supported\n", WORD(secsiz));
+  		close(fd);
+  		fd = -1;
++ 		dev_info();
+  		return(1);
+  	}
+  					/* full cylinder buffering */
+*** mdel.c.20	Fri Nov 15 16:50:29 1991
+--- mdel.c	Fri Nov 15 16:51:58 1991
+***************
+*** 97,102 ****
+--- 97,103 ----
+  				if (dir->attr & 0x01) {
+  					while (!nogo) {
+  						printf("%s: \"%s\" is read only, erase anyway (y/n) ? ", argv[0], newfile);
++ 						fflush(stdout);
+  						gets(ans);
+  						if (ans[0] == 'y' || ans[0] == 'Y')
+  							break;
+*** mlabel.c.20	Fri Nov 15 16:50:38 1991
+--- mlabel.c	Fri Nov 15 16:52:53 1991
+***************
+*** 98,103 ****
+--- 98,104 ----
+  
+  					/* ask for new label */
+  	printf("Enter the new volume label (11 characters): ");
++ 	fflush(stdout);
+  	gets(filename);
+  	if (filename[0] != '\0') {
+  		sprintf((char *) fixed, "%-11.11s", filename);
+***************
+*** 109,114 ****
+--- 110,116 ----
+  			exit(0);
+  
+  		printf("Delete volume label (y/n): ");
++ 		fflush(stdout);
+  		gets(ans);
+  		if (ans[0] == 'y' || ans[0] == 'Y') {
+  			strcpy((char *) fixed, (char *) vol);
+*** mread.c.20	Fri Nov 15 16:50:46 1991
+--- mread.c	Fri Nov 15 16:54:43 1991
+***************
+*** 206,211 ****
+--- 206,212 ----
+  			/* CONSTCOND */
+  			while (1) {
+  				printf("File \"%s\" exists, overwrite (y/n) ? ", target);
++ 				fflush(stdout);
+  				gets(ans);
+  				if (ans[0] == 'n' || ans[0] == 'N')
+  					return(NULL);
+*** mren.c.20	Fri Nov 15 16:50:52 1991
+--- mren.c	Fri Nov 15 16:53:18 1991
+***************
+*** 66,71 ****
+--- 66,72 ----
+  	if (strcmp(temp, new) && verbose) {
+  		while (!nogo) {
+  			printf("Do you accept \"%s\" as the new filename (y/n) ? ", new);
++ 			fflush(stdout);
+  			gets(ans);
+  			if (ans[0] == 'y' || ans[0] == 'Y')
+  				break;
+*** msdos.h.20	Fri Nov 15 17:13:38 1991
+--- msdos.h	Fri Nov 15 17:29:54 1991
+***************
+*** 48,58 ****
+  	unsigned char nsect[2];		/* Sectors/track */
+  	unsigned char nheads[2];	/* Heads */
+  	unsigned char nhs[2];		/* number of hidden sectors ? */
+! 	unsigned char junk[482];	/* who cares? */
+  };
+  
+! /* typedef void SIG_TYPE; */
+! typedef int SIG_TYPE;
+  
+  #ifdef BSD
+  #define strchr index
+--- 48,61 ----
+  	unsigned char nsect[2];		/* Sectors/track */
+  	unsigned char nheads[2];	/* Heads */
+  	unsigned char nhs[2];		/* number of hidden sectors ? */
+! 	unsigned char junk0[2];
+! 	unsigned char xlow[2];
+! 	unsigned char xhigh[2];
+! 	unsigned char junk[476];	/* who cares? */
+  };
+  
+! typedef void SIG_TYPE;
+! /* typedef int SIG_TYPE; */
+  
+  #ifdef BSD
+  #define strchr index
+*** mwrite.c.20	Fri Nov 15 16:51:01 1991
+--- mwrite.c	Fri Nov 15 16:53:43 1991
+***************
+*** 175,180 ****
+--- 175,181 ----
+  					/* CONSTCOND */
+  					while (1) {
+  						printf("File \"%s\" exists, overwrite (y/n) ? ", target);
++ 						fflush(stdout);
+  						gets(ans);
+  						if (ans[0] == 'n' || ans[0] == 'N') {
+  							nogo = 1;
+*** devices.c.20	Fri Nov 15 10:01:40 1991
+--- devices.c	Fri Nov 15 18:24:48 1991
+***************
+*** 34,39 ****
+--- 34,57 ----
+  };
+  #endif /* SPARC */
+  
++ #ifdef __linux__
++ struct device devices[] = {
++ 	{'A', "/dev/dosA"		, 0L, 12, 0, (int (*) ()) 0, 80, 2,  9},
++ 	{'A', "/dev/at0"		, 0L, 12, 0, (int (*) ()) 0, 80, 2, 15},	
++ 	{'A', "/dev/dosA8310"	, 0L, 12, 0, (int (*) ()) 0, 83, 2, 10},
++ 	{'A', "/dev/dosA8311"	, 0L, 12, 0, (int (*) ()) 0, 83, 2, 11},
++ 	{'B', "/dev/dosB"		, 0L, 12, 0, (int (*) ()) 0, 80, 2,  9},
++ 	{'B', "/dev/PS1"		, 0L, 12, 0, (int (*) ()) 0, 80, 2, 17},	
++ 	{'B', "/dev/dosB8310"	, 0L, 12, 0, (int (*) ()) 0, 83, 2, 10},
++ 	{'B', "/dev/dosB8311"	, 0L, 12, 0, (int (*) ()) 0, 83, 2, 11},
++ 	{'C', "/dev/dosC"		, 0L, 16, 0, (int (*) ()) 0,  0, 0,  0},
++ 	{'D', "/dev/dosD"		, 0L, 16, 0, (int (*) ()) 0,  0, 0,  0},
++ 	{'X', "/dev/dosX"		, 0L, 12, 0, (int (*) ()) 0,  0, 2,  0},
++ 	{'Y', "/dev/dosY"		, 0L, 12, 0, (int (*) ()) 0,  0, 2,  0},
++ 	{'\0', (char *) NULL, 0L, 0, 0, (int (*) ()) 0, 0, 0, 0}
++ };
++ #endif /* __LINUX__ */
++ 
+  #ifdef UNIXPC
+  #include <sys/gdioctl.h>
+  #include <fcntl.h>
+***************
+*** 73,75 ****
+--- 91,106 ----
+  	return(0);
+  }
+  #endif /* UNIXPC */
++ 
++ int dev_info()
++ {
++ 	struct device *dp = devices;
++ 
++ 	while(dp->name)
++ 	{
++ 		fprintf(stderr,
++ 		"DOS %c = Unix %-16s %2d Tracks %2d Heads %2d Sectors %2d bits FAT\n"
++ 		,dp->drive,dp->name, dp->tracks, dp->heads, dp->sectors, dp->fat_bits);
++ 		++dp;
++ 	}
++ }

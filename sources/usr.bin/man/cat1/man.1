@@ -1,0 +1,66 @@
+
+
+
+man(1)                   USER COMMANDS                     man(1)
+
+
+
+NAME
+     man - find & format online manuals
+
+SYNTAX
+     man [section] title
+
+DESCRIPTION
+     Man finds an online manual of the given  title,  formats  it
+     (if  necessary), and displays it on the screen. If the title
+     occurs in several sections of the online manuals,  the  sec-
+     tion argument specifies which section.
+
+     Man looks in the users environment for two  variables,  MAN-
+     PATH  and PAGER. The first holds a list of directories where
+     manuals are kept; directories  should  be  absolute  and  be
+     separated  by spaces, tabs, or colons. It can be set up from
+     shell like
+
+     $ MANPATH="/usr/man /usr/local/man" ; export MANPATH
+
+     If no MANPATH variable is found, man defaults to /_u_s_r/_m_a_n.
+
+     The PAGER variable indicates which pager should be  used  to
+     display  the  manual.  If  none  is  found,  man defaults to
+     /_u_s_r/_l_o_c_a_l/_b_i_n/_l_e_s_s.
+
+     Man searches through the _w_h_a_t_i_s file in each of  the  direc-
+     tories  in  MANPATH  for an appropriate manual. This file is
+     described in _w_h_a_t_i_s(_5). Man then looks for the manual  in  a
+     _c_a_t_x  directory;  if  it  is there, man directly displays it
+     with the pager. Otherwise,  nroff  is  used  to  format  the
+     manual  from the _m_a_n_x directory, and the output is passed to
+     the pager.
+
+     If no manual is found in _w_h_a_t_i_s,  or  the  manual  does  not
+     exist etc., man will give an error message and fail.
+
+FILES
+     /usr/man - usual directory for manuals
+
+     /usr/man/whatis - file which lists all the manuals
+
+     /usr/man/catx - directories of pre-nroffed manuals
+
+     /usr/man/manx - directories of non-nroffed manuals
+
+SEE ALSO
+     nroff(1), less(1), whatis(5)
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

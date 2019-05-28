@@ -1,0 +1,320 @@
+##############################################################################
+#
+# This is the standard entry in the termcap to have 80x25 only change
+# is the addition of con80x25 in front of dumb, this change must be done
+# because if no SVGA-mode is chosen the term is set to con80x25.
+#
+##############################################################################
+
+con80x25|dumb|console:\
+	:do=^J:co#80:li#25:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;25r\E[25;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+##############################################################################
+#
+# Different entrys for SVGA-modes on: ATI, Ahead, C&T, Cirrus, Everex, Genoa,
+#				      Paradise, Trident, Tseng, Video7
+# The entrys supported by your card should be added to your termcap-file,
+# or you just append the whole thing to your termcap.
+#
+##############################################################################
+
+
+# Supported by:
+# Genoa
+con80x29:\
+	:do=^J:co#80:li#29:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;29r\E[29;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex, Trident
+con80x30:\
+	:do=^J:co#80:li#30:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;30r\E[30;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+
+# Supported by:
+# Genoa
+con80x32:\
+	:do=^J:co#80:li#32:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;32r\E[32;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex
+con80x34:\
+	:do=^J:co#80:li#34:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;34r\E[34;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+
+# Supported by:
+# Trident, Video7
+con80x43:\
+	:do=^J:co#80:li#43:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;43r\E[43;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Genoa
+con80x44:\
+	:do=^J:co#80:li#44:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;44r\E[44;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex, Genoa, Trident, Tseng, Video7
+con80x60:\
+	:do=^J:co#80:li#60:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;60r\E[60;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Ahead, Genoa
+con80x66:\
+	:do=^J:co#80:li#66:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;66r\E[66;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+
+
+# Supported by:
+# ATI, Ahead, C&T, Cirrus, Everex, Genoa, Paradise, Trident, Tseng, Video7
+con132x25:\
+	:do=^J:co#132:li#25:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;25r\E[25;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Ahead, Tseng, Video7
+con132x28:\
+	:do=^J:co#132:li#28:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;28r\E[28;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Genoa
+con132x29:\
+	:do=^J:co#132:li#29:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;29r\E[29;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Cirrus, Everex, Trident
+con132x30:\
+	:do=^J:co#132:li#30:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;30r\E[30;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Genoa 
+con132x32:\
+	:do=^J:co#132:li#32:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;32r\E[32;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Paradise, Trident, Video7
+con132x43:\
+	:do=^J:co#132:li#43:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;43r\E[43;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# ATI, Ahead, Cirrus, Everex, Genoa, Tseng
+con132x44:\
+	:do=^J:co#132:li#44:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;44r\E[44;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# C&T
+con132x50:\
+	:do=^J:co#132:li#50:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;50r\E[50;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Genoa, Trident
+con132x60:\
+	:do=^J:co#132:li#60:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;60r\E[60;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex
+con100x27:\
+	:do=^J:co#100:li#27:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;27r\E[27;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Cirrus
+con100x37:\
+	:do=^J:co#100:li#37:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;37r\E[37;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Tseng
+con100x40:\
+	:do=^J:co#100:li#40:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;40r\E[40;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Genoa
+con100x42:\
+	:do=^J:co#100:li#42:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;42r\E[42;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex
+con100x43:\
+	:do=^J:co#100:li#43:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;43r\E[43;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Video7
+con100x60:\
+	:do=^J:co#100:li#60:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;60r\E[60;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex, Genoa
+con100x75:\
+	:do=^J:co#100:li#75:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;75r\E[75;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Ahead
+con160x50:\
+	:do=^J:co#160:li#50:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;50r\E[50;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+# Supported by:
+# Everex
+con160x64:\
+	:do=^J:co#160:li#50:cl=\E[H\E[J:sf=\ED:\
+	:le=^H:bs:am:cm=\E[%i%d;%dH:nd=\E[C:up=\E[A:\
+	:ce=\E[K:cd=\E[J:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:\
+	:md=\E[1m:mr=\E[7m:mb=\E[5m:me=\E[m:is=\E[1;50r\E[50;1H:\
+	:it#8:ku=\E[A:kd=\E[B:kr=\E[C:kl=\E[D:kb=^H:\
+	:ho=\E[H:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:pt:sr=\EM:vt#3:xn:\
+	:sc=\E7:rc=\E8:cs=\E[%i%d;%dr:
+
+
+
+

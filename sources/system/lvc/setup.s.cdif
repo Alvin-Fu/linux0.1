@@ -1,0 +1,18 @@
+*** setup.s.orig	Tue Dec 24 17:44:51 1991
+--- setup.s	Tue Dec 24 17:56:30 1991
+***************
+*** 62,67 ****
+--- 62,74 ----
+  	mov	[10],bx
+  	mov	[12],cx
+  
++  	mov	ax,#0x0003
++  	int	0x10
++  	
++  	mov	ax,#0x1112
++  	mov	bx,#0x0000
++  	int	0x10
++ 
+  ! Get hd0 data
+  
+  	mov	ax,#0x0000

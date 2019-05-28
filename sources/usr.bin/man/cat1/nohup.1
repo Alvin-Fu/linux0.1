@@ -1,0 +1,66 @@
+
+
+
+NOHUP(1L)         MISC. REFERENCE MANUAL PAGES          NOHUP(1L)
+
+
+
+NAME
+     nohup - run a command immume to hangups, with  output  to  a
+     non-tty
+
+SYNOPSIS
+     nohup command [arg...]
+
+DESCRIPTION
+     This manual page documents the GNU version of nohup.   nohup
+     runs  the  given _c_o_m_m_a_n_d with hangup signals ignored and the
+     scheduling priority increased by 5, so that the command  can
+     continue  running  in  the background after you log out.  If
+     the standard output is a tty, it and the standard error  are
+     redirected   so   that   they   are  appended  to  the  file
+     `nohup.out'; if that cannot be written to, they are appended
+     to  the  file  `$HOME/nohup.out'.  If that cannot be written
+     to, the command is not run.
+
+     If nohup creates the file `nohup.out' or  `$HOME/nohup.out',
+     it creates it with no access permissions for group or other.
+     It does not change the permissions of those  files  if  they
+     already existed.
+
+     nohup does not automatically put the command it runs in  the
+     background;  you must do that explicitly, by ending the com-
+     mand line with an `&'.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

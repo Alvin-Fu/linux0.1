@@ -1,0 +1,19 @@
+*** console.c	Sun Dec 15 17:46:21 1991
+--- console.c.new	Sun Jan  5 20:00:37 1992
+***************
+*** 41,47 ****
+  #define ORIG_VIDEO_PAGE		(*(unsigned short *)0x90004)
+  #define ORIG_VIDEO_MODE		((*(unsigned short *)0x90006) & 0xff)
+  #define ORIG_VIDEO_COLS 	(((*(unsigned short *)0x90006) & 0xff00) >> 8)
+! #define ORIG_VIDEO_LINES	(25)
+  #define ORIG_VIDEO_EGA_AX	(*(unsigned short *)0x90008)
+  #define ORIG_VIDEO_EGA_BX	(*(unsigned short *)0x9000a)
+  #define ORIG_VIDEO_EGA_CX	(*(unsigned short *)0x9000c)
+--- 41,47 ----
+  #define ORIG_VIDEO_PAGE		(*(unsigned short *)0x90004)
+  #define ORIG_VIDEO_MODE		((*(unsigned short *)0x90006) & 0xff)
+  #define ORIG_VIDEO_COLS 	(((*(unsigned short *)0x90006) & 0xff00) >> 8)
+! #define ORIG_VIDEO_LINES	((*(unsigned short *)0x9000e) & 0xff)
+  #define ORIG_VIDEO_EGA_AX	(*(unsigned short *)0x90008)
+  #define ORIG_VIDEO_EGA_BX	(*(unsigned short *)0x9000a)
+  #define ORIG_VIDEO_EGA_CX	(*(unsigned short *)0x9000c)

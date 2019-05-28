@@ -1,0 +1,2705 @@
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create:
+#	fat_read.c
+#	fat_write.c
+#	file_read.c
+#	file_write.c
+#	init.c
+#	is_dir.c
+#	match.c
+#	mattrib.c
+#	mcd.c
+#	mcopy.c
+#	mdel.c
+#	mdir.c
+#	mformat.c
+#	mkmanifest.c
+#	mlabel.c
+#	mmd.c
+# This archive created: Mon Aug 26 09:54:28 1991
+export PATH; PATH=/bin:/usr/bin:$PATH
+echo shar: "extracting 'fat_read.c'" '(2500 characters)'
+if test -f 'fat_read.c'
+then
+	echo shar: "will not over-write existing file 'fat_read.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'fat_read.c'
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xint fat_len;				/* length of FAT table (in sectors) */
+Xunsigned int end_fat;			/* the end-of-chain marker */
+Xunsigned int last_fat;			/* the last in a chain marker */
+Xunsigned char *fat_buf;			/* the File Allocation Table */
+X
+Xextern int fat_bits;
+X
+X/*
+X * Get and decode a FAT (file allocation table) entry.  Returns the cluster
+X * number on success or 1 on failure.
+X */
+X
+Xunsigned int
+Xfat_decode(num)
+Xunsigned int num;
+X{
+X	unsigned int fat, fat_hi, fat_low, byte_1, byte_2;
+X	int start;
+X
+X	if (fat_bits == 12) {
+X		/*
+X		 *	|    byte n     |   byte n+1    |   byte n+2    |
+X		 *	|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+X		 *	| | | | | | | | | | | | | | | | | | | | | | | | |
+X		 *	| n+0.0 | n+0.5 | n+1.0 | n+1.5 | n+2.0 | n+2.5 |
+X		 *	    \_____  \____   \______/________/_____   /
+X		 *	      ____\______\________/   _____/  ____\_/
+X		 *	     /     \      \          /       /     \
+X		 *	| n+1.5 | n+0.0 | n+0.5 | n+2.0 | n+2.5 | n+1.0 |
+X		 *	|      FAT entry k      |    FAT entry k+1      |
+X		 */
+X					/* which bytes contain the entry */
+X		start = num * 3 / 2;
+X		if (start <= 2 || start + 1 > (fat_len * MSECTOR_SIZE))
+X			return(1);
+X
+X		byte_1 = *(fat_buf + start);
+X		byte_2 = *(fat_buf + start + 1);
+X					/* (odd) not on byte boundary */
+X		if (num % 2) {
+X			fat_hi = (byte_2 & 0xff) << 4;
+X			fat_low = (byte_1 & 0xf0) >> 4;
+X		}
+X					/* (even) on byte boundary */
+X		else {
+X			fat_hi = (byte_2 & 0xf) << 8;
+X			fat_low = byte_1 & 0xff;
+X		}
+X		fat = (fat_hi + fat_low) & 0xfff;
+X	}
+X	else {
+X		/*
+X		 *	|    byte n     |   byte n+1    |
+X		 *	|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+X		 *	| | | | | | | | | | | | | | | | |
+X		 *	|         FAT entry k           |
+X		 */
+X					/* which bytes contain the entry */
+X		start = num * 2;
+X		if (start <= 3 || start + 1 > (fat_len * MSECTOR_SIZE))
+X			return(1);
+X
+X		fat = (*(fat_buf + start + 1) * 0x100) + *(fat_buf + start);
+X	}
+X	return(fat);
+X}
+X
+X/*
+X * Read the entire FAT table into memory.
+X */
+X
+Xvoid
+Xfat_read(start)
+Xint start;
+X{
+X	int buflen;
+X	char *malloc();
+X	void perror(), exit(), disk_read();
+X					/* only the first copy of the FAT */
+X	buflen = fat_len * MSECTOR_SIZE;
+X	fat_buf = (unsigned char *) malloc((unsigned int) buflen);
+X	if (fat_buf == NULL) {
+X		perror("fat_read: malloc");
+X		exit(1);
+X	}
+X					/* read the FAT sectors */
+X	disk_read((long) start, fat_buf, buflen);
+X
+X					/* the encoding scheme */
+X	if (fat_bits == 12) {
+X		end_fat = 0xfff;
+X		last_fat = 0xff8;
+X	}
+X	else {
+X		end_fat = 0xffff;
+X		last_fat = 0xfff8;
+X	}
+X	return;
+X}
+SHAR_EOF
+if test 2500 -ne "`wc -c < 'fat_read.c'`"
+then
+	echo shar: "error transmitting 'fat_read.c'" '(should have been 2500 characters)'
+fi
+fi
+echo shar: "extracting 'fat_write.c'" '(2442 characters)'
+if test -f 'fat_write.c'
+then
+	echo shar: "will not over-write existing file 'fat_write.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'fat_write.c'
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xextern int fd, dir_start, num_fat, fat_len, fat_error, fat_bits;
+Xextern unsigned char *fat_buf;
+X
+X/*
+X * Puts a code into the FAT table.  Is the opposite of fat_decode().  No
+X * sanity checking is done on the code.  Returns a 1 on error.
+X */
+X
+Xint
+Xfat_encode(num, code)
+Xunsigned int num;
+Xunsigned int code;
+X{
+X	int start;
+X
+X	if (fat_bits == 12) {
+X		/*
+X		 *	|    byte n     |   byte n+1    |   byte n+2    |
+X		 *	|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+X		 *	| | | | | | | | | | | | | | | | | | | | | | | | |
+X		 *	| n+0.0 | n+0.5 | n+1.0 | n+1.5 | n+2.0 | n+2.5 |
+X		 *	    \_____  \____   \______/________/_____   /
+X		 *	      ____\______\________/   _____/  ____\_/
+X		 *	     /     \      \          /       /     \
+X		 *	| n+1.5 | n+0.0 | n+0.5 | n+2.0 | n+2.5 | n+1.0 |
+X		 *	|      FAT entry k      |    FAT entry k+1      |
+X		 */
+X					/* which bytes contain the entry */
+X		start = num * 3 / 2;
+X		if (start <= 2 || start + 1 > (fat_len * MSECTOR_SIZE))
+X			return(1);
+X					/* (odd) not on byte boundary */
+X		if (num % 2) {
+X			*(fat_buf + start) = (*(fat_buf + start) & 0x0f) + ((code << 4) & 0xf0);
+X			*(fat_buf + start + 1) = (code >> 4) & 0xff;
+X		}
+X					/* (even) on byte boundary */
+X		else {
+X			*(fat_buf + start) = code & 0xff;
+X			*(fat_buf + start + 1) = (*(fat_buf + start + 1) & 0xf0) + ((code >> 8) & 0x0f);
+X		}
+X	}
+X	else {
+X		/*
+X		 *	|    byte n     |   byte n+1    |
+X		 *	|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+X		 *	| | | | | | | | | | | | | | | | |
+X		 *	|         FAT entry k           |
+X		 */
+X					/* which bytes contain the entry */
+X		start = num * 2;
+X		if (start <= 3 || start + 1 > (fat_len * MSECTOR_SIZE))
+X			return(1);
+X
+X		*(fat_buf + start + 1) =  code / 0x100;
+X		*(fat_buf + start) =  code % 0x100;
+X	}
+X	return(0);
+X}
+X
+X/*
+X * Write the FAT table to the disk.  Up to now the FAT manipulation has
+X * been done in memory.  All errors are fatal.  (Might not be too smart
+X * to wait till the end of the program to write the table.  Oh well...)
+X */
+X
+Xvoid
+Xfat_write()
+X{
+X	int fat_start, buflen, dups;
+X	void disk_write();
+X
+X	if (fd < 0)
+X		return;
+X
+X	fat_start = dir_start - (fat_len * num_fat);
+X	buflen = fat_len * MSECTOR_SIZE;
+X
+X	disk_write((long) fat_start, fat_buf, buflen);
+X
+X	/*
+X	 * Only duplicate the FAT table if no errors were detected
+X	 */
+X	if (!fat_error) {
+X		dups = num_fat - 1;
+X		while (dups--) {
+X			fat_start += fat_len;
+X			disk_write((long) fat_start, fat_buf, buflen);
+X		}
+X	}
+X	return;
+X}
+SHAR_EOF
+if test 2442 -ne "`wc -c < 'fat_write.c'`"
+then
+	echo shar: "error transmitting 'fat_write.c'" '(should have been 2442 characters)'
+fi
+fi
+echo shar: "extracting 'file_read.c'" '(1825 characters)'
+if test -f 'file_read.c'
+then
+	echo shar: "will not over-write existing file 'file_read.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'file_read.c'
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xextern int clus_size, dir_start, dir_len, fat_error;
+Xextern unsigned int last_fat;
+X
+X/*
+X * Read the clusters given the beginning FAT entry.  Returns 0 on success.
+X */
+X
+Xint
+Xfile_read(fp, fat, textmode, stripmode, size)
+XFILE *fp;
+Xunsigned int fat;
+Xint textmode, stripmode;
+Xlong size;
+X{
+X	register int i;
+X	int in_len, out_len;
+X	unsigned int fat_decode();
+X	long current, start;
+X	unsigned char in_buf[MAX_CLUSTER], out_buf[MAX_CLUSTER];
+X	void disk_read(), perror();
+X
+X	current = 0L;
+X	in_len = clus_size * MSECTOR_SIZE;
+X					/* a zero length file? */
+X	if (fat == 0)
+X		return(0);
+X
+X	/* CONSTCOND */
+X	while (1) {
+X		start = (long) (fat - 2) * clus_size + dir_start + dir_len;
+X		disk_read(start, in_buf, in_len);
+X
+X					/* do the translations */
+X		if (textmode || stripmode) {
+X			out_len = 0;
+X			for (i = 0; i < in_len; i++) {
+X				current++;
+X				if (current > size)
+X					break;
+X				if (textmode && in_buf[i] == '\r')
+X					continue;
+X				if (textmode && current == size && in_buf[i] == 0x1a)
+X					continue;
+X				if (stripmode)
+X					out_buf[out_len++] = in_buf[i] & 0x7f;
+X				else
+X					out_buf[out_len++] = in_buf[i];
+X			}
+X					/* write it */
+X			if (fwrite((char *) out_buf, sizeof(*out_buf), out_len, fp) == 0) {
+X				perror("file_write: fwrite");
+X				return(-1);
+X			}
+X		}
+X					/* much easier... */
+X		else {
+X			out_len = (size - current > in_len) ? in_len : size - current;
+X			if (fwrite((char *) in_buf, sizeof(*in_buf), out_len, fp) == 0) {
+X				perror("file_write: fwrite");
+X				return(-1);
+X			}
+X
+X			current += out_len;
+X			if (current >= size)
+X				break;
+X		}
+X
+X					/* get next cluster number */
+X		fat = fat_decode(fat);
+X		if (fat == 1) {
+X			fprintf(stderr, "file_read: FAT problem\n");
+X			fat_error++;
+X			return(-1);
+X		}
+X					/* end of cluster chain */
+X		if (fat >= last_fat)
+X			break;
+X	}
+X	return(0);
+X}
+SHAR_EOF
+if test 1825 -ne "`wc -c < 'file_read.c'`"
+then
+	echo shar: "error transmitting 'file_read.c'" '(should have been 1825 characters)'
+fi
+fi
+echo shar: "extracting 'file_write.c'" '(2342 characters)'
+if test -f 'file_write.c'
+then
+	echo shar: "will not over-write existing file 'file_write.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'file_write.c'
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xextern int full, fat_error, clus_size, dir_start, dir_len;
+Xextern unsigned end_fat;
+X
+Xstatic int need_nl, put_cluster();
+X
+X/*
+X * Write out clusters with input from the given file pointer.   Returns the
+X * size of the file (which may have changed) or -1 on error.
+X */
+X
+Xlong
+Xfile_write(fp, firstfat, filesize, textmode)
+XFILE *fp;
+Xunsigned int firstfat;
+Xlong filesize;
+Xint textmode;
+X{
+X	int i;
+X	unsigned int fat, oldfat, next_fat();
+X	long size;
+X
+X	oldfat = 0;
+X	fat = firstfat;
+X	need_nl = 0;
+X	size = 0L;
+X
+X	/* CONSTCOND */
+X	while (1) {
+X		if ((i = put_cluster(fp, fat, &filesize, textmode)) < 0) {
+X			if (oldfat) {
+X				fat_encode(oldfat, end_fat);
+X				if (fat_free(firstfat))
+X					fat_error++;
+X				full = 1;
+X			}
+X			return(-1);
+X		}
+X
+X		size += i;
+X		if (size >= filesize) {
+X			fat_encode(fat, end_fat);
+X			break;
+X		}
+X		oldfat = fat;
+X					/* get next free cluster */
+X		fat = next_fat(oldfat);
+X		if (fat == 1) {
+X			fat_encode(oldfat, end_fat);
+X					/* delete it, if doesn't fit */
+X			if (fat_free(firstfat))
+X				fat_error++;
+X			full = 1;
+X			return(-1);
+X		}
+X		fat_encode(oldfat, fat);
+X	}
+X	return(size);
+X}
+X
+X/*
+X * Write to the cluster from the named Unix file descriptor.  Returns the
+X * size of what was written, or -1 on error.
+X */
+X
+Xstatic int
+Xput_cluster(fp, num, filesize, textmode)
+XFILE *fp;
+Xunsigned int num;
+Xlong *filesize;
+Xint textmode;
+X{
+X	int i, buflen, c;
+X	long start;
+X	unsigned char tbuf[MAX_CLUSTER];
+X	void disk_write(), perror();
+X
+X	start = (long) (num - 2) * clus_size + dir_start + dir_len;
+X	buflen = clus_size * MSECTOR_SIZE;
+X					/* '\n' to '\r\n' translation */
+X	if (textmode) {
+X		i = 0;
+X		if (need_nl) {
+X			tbuf[i++] = '\n';
+X			need_nl = 0;
+X		}
+X		while (i < buflen) {
+X			if ((c = fgetc(fp)) == EOF) {
+X					/* put a file EOF marker */
+X				tbuf[i++] = 0x1a;
+X					/* make the file appear larger */
+X				*filesize = *filesize + 1;
+X				break;
+X			}
+X			if (c == '\n') {
+X				tbuf[i++] = '\r';
+X					/* make the file appear larger */
+X				*filesize = *filesize + 1;
+X					/* if at the end of the buffer */
+X				if (i == buflen) {
+X					need_nl++;
+X					break;
+X				}
+X			}
+X			tbuf[i++] = (unsigned char) c;
+X		}
+X	}
+X					/* much easier.... */
+X	else {
+X		if ((i = fread((char *) tbuf, sizeof(*tbuf), buflen, fp)) <= 0) {
+X			perror("putcluster: fread");
+X			return(-1);
+X		}
+X	}
+X
+X	disk_write(start, tbuf, buflen);
+X	return(i);
+X}
+SHAR_EOF
+if test 2342 -ne "`wc -c < 'file_write.c'`"
+then
+	echo shar: "error transmitting 'file_write.c'" '(should have been 2342 characters)'
+fi
+fi
+echo shar: "extracting 'init.c'" '(7669 characters)'
+if test -f 'init.c'
+then
+	echo shar: "will not over-write existing file 'init.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'init.c'
+X/*
+X * Initialize an MSDOS diskette.  Read the boot sector, and switch to the
+X * proper floppy disk device to match the format on the disk.  Sets a bunch
+X * of global variables.  Returns 0 on success, or 1 on failure.
+X */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X#include "msdos.h"
+X
+X#define FULL_CYL
+X#define WORD(x) ((boot->x)[0] + ((boot->x)[1] << 8))
+X#define DWORD(x) ((boot->x)[0] + ((boot->x)[1] << 8) + ((boot->x)[2] << 16) + ((boot->x)[3] << 24))
+X
+Xunsigned int num_clus;			/* total number of cluster */
+Xint num_fat;				/* the number of FAT tables */
+Xlong disk_offset;			/* skip this many bytes */
+Xint fat_bits;				/* the FAT encoding scheme */
+X
+Xextern int fd, fat_len, dir_len, dir_start, clus_size, dir_dirty, disk_dirty;
+Xextern int fat_error, disk_size;
+Xextern long disk_current;
+Xextern char *mcwd;
+Xextern unsigned char *fat_buf, *disk_buf, *dir_buf;
+Xextern struct device devices[];
+Xstatic struct bootsector *read_boot();
+X
+Xint
+Xinit(drive, mode)
+Xchar drive;
+Xint mode;
+X{
+X	int fat_start, tracks, heads, sectors, old_dos;
+X	char *malloc(), *name, *expand();
+X	void perror(), exit(), reset_chain(), free(), fat_read();
+X	struct bootsector *boot;
+X	struct device *dev;
+X
+X	if (fd != -1) {
+X		close(fd);
+X		free((char *) fat_buf);
+X		free((char *) disk_buf);
+X		free((char *) dir_buf);
+X	}
+X					/* check out the drive letter */
+X	dev = devices;
+X	while (dev->drive) {
+X		if (dev->drive == drive)
+X			break;
+X		dev++;
+X	}
+X	if (!dev->drive) {
+X		fprintf(stderr, "Drive '%c:' not supported\n", drive);
+X		return(1);
+X	}
+X					/* open the device */
+X	while (dev->name) {
+X		if (dev->drive != drive)
+X			break;
+X
+X		name = expand(dev->name);
+X		if ((fd = open(name, mode | dev->mode)) < 0) {
+X			perror("init: open");
+X			exit(1);
+X		}
+X					/* set default parameters, if needed */
+X		if (dev->gioctl) {
+X			if ((*(dev->gioctl)) (fd, dev->tracks, dev->heads, dev->sectors))
+X				goto try_again;
+X		}
+X					/* read the boot sector */
+X		disk_offset = dev->offset;
+X		if ((boot = read_boot()) == NULL)
+X			goto try_again;
+X
+X		heads = WORD(nheads);
+X		sectors = WORD(nsect);
+X		if (heads && sectors)
+X			tracks = WORD(psect) / (unsigned) (heads * sectors);
+X
+X					/* sanity checking */
+X		old_dos = 0;
+X		if (!heads || heads > 100 || !sectors || sectors > 500 || tracks > 5000 || !boot->clsiz) {
+X			/*
+X			 * The above technique will fail on diskettes that
+X			 * have been formatted with very old MSDOS, so we
+X			 * resort to the old table-driven method using the
+X			 * media signature (first byte in FAT).
+X			 */
+X			unsigned char temp[MSECTOR_SIZE];
+X			if (read(fd, (char *) temp, MSECTOR_SIZE) != MSECTOR_SIZE)
+X				temp[0] = '0';
+X
+X			switch (temp[0]) {
+X				case 0xfe:	/* 160k */
+X					tracks = 40;
+X					sectors = 8;
+X					heads = 1;
+X					dir_start = 3;
+X					dir_len = 4;
+X					clus_size = 1;
+X					fat_len = 1;
+X					num_clus = 313;
+X					break;
+X				case 0xfc:	/* 180k */
+X					tracks = 40;
+X					sectors = 9;
+X					heads = 1;
+X					dir_start = 5;
+X					dir_len = 4;
+X					clus_size = 1;
+X					fat_len = 2;
+X					num_clus = 351;
+X					break;
+X				case 0xff:	/* 320k */
+X					tracks = 40;
+X					sectors = 8;
+X					heads = 2;
+X					dir_start = 3;
+X					dir_len = 7;
+X					clus_size = 2;
+X					fat_len = 1;
+X					num_clus = 315;
+X					break;
+X				case 0xfd:	/* 360k */
+X					tracks = 40;
+X					sectors = 9;
+X					heads = 2;
+X					dir_start = 5;
+X					dir_len = 7;
+X					clus_size = 2;
+X					fat_len = 2;
+X					num_clus = 354;
+X					break;
+X				default:
+X					fprintf(stderr, "Probable non-MSDOS disk\n");
+X					close(fd);
+X					fd = -1;
+X					return(1);
+X			}
+X			fat_start = 1;
+X			num_fat = 2;
+X			old_dos = 1;
+X		}
+X					/* check the parameters */
+X		if (dev->tracks && !dev->gioctl) {
+X			if (dev->tracks == tracks && dev->heads == heads && dev->sectors == sectors)
+X				break;
+X		}
+X		else
+X			break;
+X
+Xtry_again:	close(fd);
+X		fd = -1;
+X		dev++;
+X	}
+X	if (fd == -1) {
+X		if (boot != NULL && dev->tracks)
+X			fprintf(stderr, "No support for %d tracks, %d heads, %d sector diskettes\n", tracks, heads, sectors);
+X		return(1);
+X	}
+X					/* set new parameters, if needed */
+X	if (dev->gioctl) {
+X		if ((*(dev->gioctl)) (fd, tracks, heads, sectors)) {
+X			fprintf(stderr, "Can't set disk parameters\n");
+X			close(fd);
+X			fd = -1;
+X			return(1);
+X		}
+X	}
+X
+X	/*
+X	 * all numbers are in sectors, except num_clus (which is in clusters)
+X	 */
+X	if (!old_dos) {
+X		clus_size = boot->clsiz;
+X		fat_start = WORD(nrsvsect);
+X		fat_len = WORD(fatlen);
+X		dir_start = fat_start + (boot->nfat * fat_len);
+X		dir_len = WORD(dirents) * MDIR_SIZE / (unsigned) MSECTOR_SIZE;
+X		/*
+X		 * For DOS partitions > 32M
+X		 */
+X		if (WORD(psect) == 0)
+X			num_clus = (unsigned int) (DWORD(bigsect) - dir_start - dir_len) / clus_size;
+X		else
+X			num_clus = (unsigned int) (WORD(psect) - dir_start - dir_len) / clus_size;
+X		num_fat = boot->nfat;
+X	}
+X					/* more sanity checking */
+X	if (clus_size * MSECTOR_SIZE > MAX_CLUSTER) {
+X		fprintf(stderr, "Cluster size of %d is larger than max of %d\n", clus_size * MSECTOR_SIZE, MAX_CLUSTER);
+X		close(fd);
+X		fd = -1;
+X		return(1);
+X	}
+X	if (!old_dos && WORD(secsiz) != MSECTOR_SIZE) {
+X		fprintf(stderr, "Sector size of %d is not supported\n", WORD(secsiz));
+X		close(fd);
+X		fd = -1;
+X		return(1);
+X	}
+X					/* full cylinder buffering */
+X#ifdef FULL_CYL
+X	disk_size = (dev->tracks) ? (sectors * heads) : 1;
+X#else /* FULL_CYL */
+X	disk_size = (dev->tracks) ? sectors : 1;
+X#endif /* FULL_CYL */
+X
+X/*
+X * The driver in Dell's SVR4 v2.01 is unreliable with large writes.
+X */
+X#ifdef DELL
+X	disk_size = 1;
+X#endif /* DELL */
+X
+X	disk_buf = (unsigned char *) malloc((unsigned int) disk_size * MSECTOR_SIZE);
+X	if (disk_buf == NULL) {
+X		perror("init: malloc");
+X		exit(1);
+X	}
+X					/* read the FAT sectors */
+X	disk_current = -1000L;
+X	disk_dirty = 0;
+X	fat_error = 0;
+X	fat_bits = dev->fat_bits;
+X	fat_read(fat_start);
+X					/* set dir_chain[] to root directory */
+X	dir_dirty = 0;
+X	reset_chain(NEW);
+X	return(0);
+X}
+X
+X/*
+X * Fix the info in the MCWD file to be a proper directory name.  Always
+X * has a leading separator.  Never has a trailing separator (unless it is
+X * the path itself).
+X */
+X
+Xchar *
+Xfix_mcwd()
+X{
+X	FILE *fp;
+X	struct stat sbuf;
+X	char *s, *strcpy(), *strcat(), *mcwd_path, *getenv(), *strncpy();
+X	char buf[BUFSIZ], *file, *expand();
+X	static char ans[MAX_PATH];
+X	long now, time();
+X
+X	mcwd_path = getenv("MCWD");
+X	if (mcwd_path == NULL || *mcwd_path == '\0')
+X		mcwd_path = "$HOME/.mcwd";
+X
+X	file = expand(mcwd_path);
+X	if (stat(file, &sbuf) < 0)
+X		return("A:/");
+X	/*
+X	 * Ignore the info, if the file is more than 6 hours old
+X	 */
+X	time(&now);
+X	if (now - sbuf.st_mtime > 6 * 60 * 60) {
+X		fprintf(stderr, "Warning: \"%s\" is out of date, contents ignored\n", file);
+X		return("A:/");
+X	}
+X	
+X	if (!(fp = fopen(file, "r")))
+X		return("A:/");
+X
+X	if (!fgets(buf, BUFSIZ, fp))
+X		return("A:/");
+X
+X	buf[strlen(buf) -1] = '\0';
+X	fclose(fp);
+X					/* drive letter present? */
+X	s = buf;
+X	if (buf[0] && buf[1] == ':') {
+X		strncpy(ans, buf, 2);
+X		ans[2] = '\0';
+X		s = &buf[2];
+X	}
+X	else 
+X		strcpy(ans, "A:");
+X					/* add a leading separator */
+X	if (*s != '/' && *s != '\\') {
+X		strcat(ans, "/");
+X		strcat(ans, s);
+X	}
+X	else
+X		strcat(ans, s);
+X					/* translate to upper case */
+X	for (s = ans; *s; ++s) {
+X		if (islower(*s))
+X			*s = toupper(*s);
+X		if (*s == '\\')
+X			*s = '/';
+X	}
+X					/* if only drive, colon, & separator */
+X	if (strlen(ans) == 3)
+X		return(ans);
+X					/* zap the trailing separator */
+X	if (*--s == '/')
+X		*s = '\0';
+X	return(ans);
+X}
+X
+X/*
+X * Read the boot sector.  We glean the disk parameters from this sector.
+X */
+X
+Xstatic struct bootsector *
+Xread_boot()
+X{
+X	long lseek();
+X	static struct bootsector boot;
+X
+X	if (lseek(fd, disk_offset, 0) < 0)
+X		return(NULL);
+X					/* read the first sector */
+X	if (read(fd, (char *) &boot, MSECTOR_SIZE) != MSECTOR_SIZE)
+X		return(NULL);
+X
+X	return(&boot);
+X}
+SHAR_EOF
+if test 7669 -ne "`wc -c < 'init.c'`"
+then
+	echo shar: "error transmitting 'init.c'" '(should have been 7669 characters)'
+fi
+fi
+echo shar: "extracting 'is_dir.c'" '(907 characters)'
+if test -f 'is_dir.c'
+then
+	echo shar: "will not over-write existing file 'is_dir.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'is_dir.c'
+X/*
+X * Test to see if a filename is a directory.  Subdir() has to be called
+X * on the directory above this one first...  Returns 1 if true.
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xextern int dir_entries;
+X
+Xint
+Xis_dir(path)
+Xchar *path;
+X{
+X	register int entry;
+X	char *newname, *unix_name();
+X	struct directory *dir, *dir_read();
+X					/* no path */
+X	if (*path == '\0')
+X		return(0);
+X
+X	for (entry = 0; entry < dir_entries; entry++) {
+X		dir = dir_read(entry);
+X					/* if empty */
+X		if (dir->name[0] == 0x0)
+X			break;
+X					/* if erased */
+X		if (dir->name[0] == 0xe5)
+X			continue;
+X					/* skip if not a directory */
+X		if (!(dir->attr & 0x10))
+X			continue;
+X
+X		newname = unix_name(dir->name, dir->ext);
+X		if (match(newname, path))
+X			return(1);
+X	}
+X
+X	/*
+X	 * If the file is "." or ".." but it fails to match, then you
+X	 * must be at root
+X	 */
+X	if (!strcmp(path, ".") || !strcmp(path, ".."))
+X		return(1);
+X
+X	return(0);
+X}
+SHAR_EOF
+if test 907 -ne "`wc -c < 'is_dir.c'`"
+then
+	echo shar: "error transmitting 'is_dir.c'" '(should have been 907 characters)'
+fi
+fi
+echo shar: "extracting 'match.c'" '(1657 characters)'
+if test -f 'match.c'
+then
+	echo shar: "will not over-write existing file 'match.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'match.c'
+X/*
+X * Do shell-style pattern matching for '?', '\', '[..]', and '*' wildcards.
+X * Returns 1 if match, 0 if not.
+X */
+X
+X#include <stdio.h>
+X
+Xint
+Xmatch(s, p)
+Xchar *s, *p;
+X{
+X	int matched, reverse;
+X	char first, last;
+X
+X	for (; *p != '\0'; s++, p++) {
+X		switch (*p) {
+X			case '?':	/* match any one character */
+X				if (*s == '\0')
+X					return(0);
+X				break;
+X			case '*':	/* match everything */
+X				while (*p == '*')
+X					p++;
+X
+X					/* if last char in pattern */
+X				if (*p == '\0')
+X					return(1);
+X
+X					/* search for next char in pattern */
+X				matched = 0;
+X				while (*s != '\0') {
+X					if (*s == *p) {
+X						matched = 1;
+X						break;
+X					}
+X					s++;
+X				}
+X				if (!matched)
+X					return(0);
+X				break;
+X			case '[':	 /* match range of characters */
+X				first = '\0';
+X				matched = 0;
+X				reverse = 0;
+X				while (*++p != ']') {
+X					if (*p == '^') {
+X						reverse = 1;
+X						p++;
+X					}
+X					first = *p;
+X					if (first == ']' || first == '\0')
+X						return(0);
+X
+X					/* if 2nd char is '-' */
+X					if (*(p + 1) == '-') {
+X						p++;
+X					/* set last to 3rd char ... */
+X						last = *++p;
+X						if (last == ']' || last == '\0')
+X							return(0);
+X					/* test the range of values */
+X						if (*s >= first && *s <= last) {
+X							matched = 1;
+X							p++;
+X							break;
+X						}
+X						return(0);
+X					}
+X					if (*s == *p)
+X						matched = 1;
+X				}
+X				if (matched && reverse)
+X					return(0);
+X				if (!matched)
+X					return(0);
+X				break;
+X			case '\\':	/* Literal match with next character */
+X				p++;
+X				/* fall thru */
+X			default:
+X				if (*s != *p)
+X					return(0);
+X				break;
+X		}
+X	}
+X					/* string ended prematurely ? */
+X	if (*s != '\0')
+X		return(0);
+X	else
+X		return(1);
+X}
+SHAR_EOF
+if test 1657 -ne "`wc -c < 'match.c'`"
+then
+	echo shar: "error transmitting 'match.c'" '(should have been 1657 characters)'
+fi
+fi
+echo shar: "extracting 'mattrib.c'" '(3434 characters)'
+if test -f 'mattrib.c'
+then
+	echo shar: "will not over-write existing file 'mattrib.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mattrib.c'
+X/*
+X * Change MSDOS file attribute flags
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd = -1;				/* the file descriptor for the device */
+Xint dir_start;				/* starting sector for directory */
+Xint dir_len;				/* length of directory (in sectors) */
+Xint dir_entries;			/* number of directory entries */
+Xint clus_size;				/* cluster size (in sectors) */
+Xchar *mcwd;				/* the Current Working Directory */
+Xint fat_error;				/* FAT error detected? */
+X
+X#define ADD	1
+X#define REMOVE	(-1)
+X#define LEAVE	0
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	int entry, ismatch, oops, fargn, read_only, hidden, sys, archive;
+X	int i, action;
+X	char *filename, *newfile, *unix_name(), drive, get_drive();
+X	char *get_path(), *pathname, *get_name(), *fix_mcwd(), last_drive;
+X	void exit(), dir_write(), dir_flush(), disk_flush();
+X	struct directory *dir, *dir_read();
+X
+X	oops = 0;
+X	fargn = -1;
+X	archive = LEAVE;
+X	hidden = LEAVE;
+X	read_only = LEAVE;
+X	sys = LEAVE;
+X					/* can't use getopt(3)... */
+X	for (i = 1; i < argc; i++) {
+X		switch (argv[i][0]) {
+X			case '-':
+X				action = REMOVE;
+X				break;
+X			case '+':
+X				action = ADD;
+X				break;
+X			default:
+X				fargn = i;
+X				break;
+X		}
+X		if (fargn != -1)
+X			break;
+X
+X		switch (argv[i][1]) {
+X			case 'a':
+X			case 'A':
+X				archive = action;
+X				break;
+X			case 'h':
+X			case 'H':
+X				hidden = action;
+X				break;
+X			case 'r':
+X			case 'R':
+X				read_only = action;
+X				break;
+X			case 's':
+X			case 'S':
+X				sys = action;
+X				break;
+X			default:
+X				oops++;
+X				break;
+X		}
+X		if (oops)
+X			break;
+X	}
+X	if (argc < 3 || argv[fargn][0] == '\0' || oops) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s [-a|+a] [-h|+h] [-r|+r] [-s|+s] msdosfile [msdosfiles...]\n", argv[0]);
+X		exit(1);
+X	}
+X	last_drive = 'x';
+X	mcwd = fix_mcwd();
+X
+X	for (i = fargn; i < argc; i++) {
+X		drive = get_drive(argv[i]);
+X		if (last_drive != drive) {
+X			if (init(drive, 2)) {
+X				fprintf(stderr, "%s: Cannot initialize '%c:'\n", argv[0], drive);
+X				continue;
+X			}
+X			last_drive = drive;
+X		}
+X		filename = get_name(argv[i]);
+X		pathname = get_path(argv[i]);
+X		if (subdir(drive, pathname))
+X			continue;
+X
+X					/* see if exists and do it */
+X		ismatch = 0;
+X		for (entry = 0; entry < dir_entries; entry++) {
+X			dir = dir_read(entry);
+X					/* if empty */
+X			if (dir->name[0] == 0x0)
+X				break;
+X					/* if erased */
+X			if (dir->name[0] == 0xe5)
+X				continue;
+X					/* if dir or volume label */
+X			if ((dir->attr & 0x10) || (dir->attr & 0x08))
+X				continue;
+X
+X			newfile = unix_name(dir->name, dir->ext);
+X
+X					/* do it... */
+X			if (match(newfile, filename)) {
+X				if (archive == ADD)
+X					dir->attr |= 0x20;
+X				if (archive == REMOVE)
+X					dir->attr &= ~0x20;
+X				if (hidden == ADD)
+X					dir->attr |= 0x02;
+X				if (hidden == REMOVE)
+X					dir->attr &= ~0x02;
+X				if (read_only == ADD)
+X					dir->attr |= 0x01;
+X				if (read_only == REMOVE)
+X					dir->attr &= ~0x01;
+X				if (sys == ADD)
+X					dir->attr |= 0x04;
+X				if (sys == REMOVE)
+X					dir->attr &= ~0x04;
+X				dir_write(entry, dir);
+X				ismatch++;
+X			}
+X		}
+X		if (!ismatch)
+X			fprintf(stderr, "%s: File \"%s\" not found\n", argv[0], filename);
+X	}
+X	dir_flush();
+X	disk_flush();
+X	close(fd);
+X	exit(0);
+X}
+SHAR_EOF
+if test 3434 -ne "`wc -c < 'mattrib.c'`"
+then
+	echo shar: "error transmitting 'mattrib.c'" '(should have been 3434 characters)'
+fi
+fi
+echo shar: "extracting 'mcd.c'" '(2639 characters)'
+if test -f 'mcd.c'
+then
+	echo shar: "will not over-write existing file 'mcd.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mcd.c'
+X/*
+X * Change MSDOS directories
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd = -1;				/* the file descriptor for the device */
+Xint dir_start;				/* starting sector for directory */
+Xint dir_len;				/* length of directory (in sectors) */
+Xint dir_entries;			/* number of directory entries */
+Xint clus_size;				/* cluster size (in sectors) */
+Xchar *mcwd;				/* the Current Working Directory */
+Xint fat_error;				/* FAT error detected? */
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	FILE *fp;
+X	char *fix_mcwd(), *strcpy(), newpath[MAX_PATH], *get_name();
+X	char *get_path(), *pathname, *filename, drive, *strcat();
+X	char get_drive(), *mcwd_path, *getenv(), *expand();
+X	void exit();
+X
+X	if (argc > 2) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s: msdosdirectory\n", argv[0]);
+X		exit(1);
+X	}
+X					/* only report the mcwd */
+X	mcwd = fix_mcwd();
+X	if (argc == 1) {
+X		printf("%s\n", mcwd);
+X		exit(0);
+X	}
+X
+X	drive = get_drive(argv[1]);
+X	filename = get_name(argv[1]);
+X	pathname = get_path(argv[1]);
+X
+X	if (init(drive, 0)) {
+X		fprintf(stderr, "%s: Cannot initialize '%c:'\n", argv[0], drive);
+X		exit(1);
+X	}
+X
+X	/*
+X	 * Move to "first guess" subdirectory, so that is_dir() can
+X	 * search to see if filename is also a directory.
+X	 */
+X	if (subdir(drive, pathname)) {
+X		fprintf(stderr, "%s: Directory not found\n", argv[0]);
+X		exit(1);
+X	}
+X					/* is filename really a subdirectory? */
+X	strcpy(newpath, pathname);
+X	if (is_dir(filename)) {
+X		if (newpath[strlen(newpath) -1] != '/')
+X			strcat(newpath, "/");
+X		strcat(newpath, filename);
+X
+X					/* move to real subdirectory */
+X		if (subdir(drive, newpath)) {
+X			fprintf(stderr, "%s: Directory not found\n", argv[0]);
+X			exit(1);
+X		}
+X	}
+X	else {
+X		if (*filename != '\0') {
+X			fprintf(stderr, "%s: Directory not found\n", argv[0]);
+X			exit(1);
+X		}
+X	}
+X					/* it checked out ok, so save it */
+X	mcwd_path = getenv("MCWD");
+X	if (mcwd_path == NULL || *mcwd_path == '\0')
+X		mcwd_path = "$HOME/.mcwd";
+X
+X	if (!(fp = fopen(expand(mcwd_path), "w"))) {
+X		fprintf(stderr, "%s: Can't open '%s' for write\n", argv[0], expand(mcwd_path));
+X		exit(1);
+X	}
+X	fprintf(fp, "%c:%s\n", drive, newpath);
+X	fclose(fp);
+X	exit(0);
+X}
+X
+X/*
+X * stubs for read-only programs
+X */
+X
+Xvoid
+Xdisk_flush()
+X{
+X	extern int disk_dirty;
+X
+X	disk_dirty = 0;
+X	return;
+X}
+X
+Xvoid
+Xdir_flush()
+X{
+X	extern int dir_dirty;
+X
+X	dir_dirty = 0;
+X	return;
+X}
+SHAR_EOF
+if test 2639 -ne "`wc -c < 'mcd.c'`"
+then
+	echo shar: "error transmitting 'mcd.c'" '(should have been 2639 characters)'
+fi
+fi
+echo shar: "extracting 'mcopy.c'" '(4332 characters)'
+if test -f 'mcopy.c'
+then
+	echo shar: "will not over-write existing file 'mcopy.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mcopy.c'
+X/*
+X * A front-end to the mread/mwrite commands.
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X#include "patchlevel.h"
+X
+X#define NONE	0
+X#define MREAD	1
+X#define MWRITE	2
+X#define MKDIR
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	extern int optind;
+X	extern char *optarg;
+X	int i, oops, msdos_args, unix_args, destination;
+X	char **nargv, **malloc();
+X	void exit();
+X					/* get command line options */
+X	msdos_args = 0;
+X	unix_args = 0;
+X	oops = 0;
+X	while ((i = getopt(argc, argv, "tnvm")) != EOF) {
+X		switch (i) {
+X			case 't':
+X			case 'n':
+X			case 'v':
+X			case 'm':
+X				break;
+X			default:
+X				oops = 1;
+X				break;
+X		}
+X	}
+X
+X	if (oops || (argc - optind) < 2) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s [-tnvm] sourcefile targetfile\n", argv[0]);
+X		fprintf(stderr, "       %s [-tnvm] sourcefile [sourcefiles...] targetdirectory\n", argv[0]);
+X		exit(1);
+X	}
+X					/* last file determines the direction */
+X	if (argv[argc - 1][1] == ':')
+X		destination = MWRITE;
+X	else
+X		destination = MREAD;
+X
+X					/* count the arguments */
+X	for (i = optind; i < argc; i++) {
+X		if (argv[i][1] == ':')
+X			msdos_args++;
+X		else
+X			unix_args++;
+X	}
+X
+X	if (destination == MREAD && unix_args > 1) {
+X		fprintf(stderr, "%s: Duplicate destination files\n", argv[0]); 
+X		exit(1);
+X	}
+X					/* chaining of mread and mwrite */
+X	if (destination == MWRITE && msdos_args > 1)
+X		chain(argc, argv);
+X
+X	/*
+X	 * Copy the *argv[] array in case your Unix doesn't end the array
+X	 * with a null when it passes it to main()
+X	 */
+X	nargv = (char **) malloc((unsigned int) (argc + 1) * sizeof(*argv));
+X	nargv[0] = "mcopy";
+X	for (i = 1; i < argc; i++)
+X		nargv[i] = argv[i];
+X	nargv[argc] = NULL;
+X
+X	if (destination == MWRITE)
+X		execvp("mwrite", nargv);
+X	else
+X		execvp("mread", nargv);
+X}
+X
+Xchain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	extern int optind;
+X	int i, j, pid, status;
+X	char *tmpdir, *mktemp(), **nargv, **malloc(), buf[256], *strcpy();
+X	char *unixname(), *realloc();
+X	void exit();
+X
+X	nargv = (char **) malloc((unsigned int) (argc + 4) * sizeof(*argv));
+X	nargv[0] = "mread";
+X	nargv[1] = "-n";
+X					/* copy only the msdos arguments */
+X	j = 2;
+X	for (i = optind; i < argc -1; i++) {
+X		if (argv[i][1] == ':')
+X			nargv[j++] = argv[i];
+X	}
+X					/* create a temp directory */
+X	tmpdir = mktemp("/tmp/mtoolsXXXXXX");
+X	if (mkdir(tmpdir, 0777) < 0)
+X		perror("mkdir");
+X
+X	nargv[j++] = tmpdir;
+X	nargv[j] = NULL;
+X
+X	printf("reading...\n");
+X	if (!(pid = fork()))
+X		execvp("mread", nargv);
+X
+X	while (wait(&status) != pid)
+X		;
+X					/* reconstruct the argv[] */
+X	nargv[0] = "sh";
+X	nargv[1] = "-c";
+X	nargv[2] = (char *) malloc(7);
+X	strcpy(nargv[2], "mwrite");
+X
+X	j = 3;
+X	for (i = 1; i < argc -1; i++) {
+X		/*
+X		 * Substitute the msdos arguments for their unix
+X		 * counterparts that have already been copied to tmpdir.
+X		 */
+X		if (argv[i][1] == ':')
+X			sprintf(buf, "%s/%s", tmpdir, unixname(argv[i]));
+X		else
+X			strcpy(buf, argv[i]);
+X
+X		nargv[2] = (char *) realloc(nargv[2], sizeof(nargv[2]) + sizeof(buf));
+X		strcat(nargv[2], " ");
+X		strcat(nargv[2], buf);
+X	}
+X					/* protect last arg from expansion */
+X	sprintf(buf, "'%s'", argv[i]);
+X	nargv[2] = (char *) realloc(nargv[2], sizeof(nargv[2]) + sizeof(buf));
+X	strcat(nargv[2], " ");
+X	strcat(nargv[2], buf);
+X
+X	nargv[3] = NULL;
+X
+X	printf("writing...\n");
+X	if (!(pid = fork()))
+X		execvp("sh", nargv);
+X
+X	while (wait(&status) != pid)
+X		;
+X					/* clobber the directory */
+X	sprintf(buf, "rm -fr %s", tmpdir);
+X	system(buf);
+X	exit(0);
+X}
+X
+Xchar *
+Xunixname(filename)
+Xchar *filename;
+X{
+X	char *s, *temp, *strcpy(), *strrchr(), buf[256];
+X	static char ans[13];
+X
+X	strcpy(buf, filename);
+X	temp = buf;
+X					/* skip drive letter */
+X	if (buf[0] && buf[1] == ':')
+X		temp = &buf[2];
+X					/* find the last separator */
+X	if (s = strrchr(temp, '/'))
+X		temp = s + 1;
+X	if (s = strrchr(temp, '\\'))
+X		temp = s + 1;
+X					/* xlate to lower case */
+X	for (s = temp; *s; ++s) {
+X		if (isupper(*s))
+X			*s = tolower(*s);
+X	}
+X
+X	strcpy(ans, temp);
+X	return(ans);
+X}
+X
+X#ifdef MKDIR
+Xmkdir(path, mode)
+Xchar *path;
+Xint mode;
+X{
+X	char buf[256];
+X	sprintf(buf, "mkdir %s", path);
+X	return(system(buf));
+X}
+X#endif /* MKDIR */
+SHAR_EOF
+if test 4332 -ne "`wc -c < 'mcopy.c'`"
+then
+	echo shar: "error transmitting 'mcopy.c'" '(should have been 4332 characters)'
+fi
+fi
+echo shar: "extracting 'mdel.c'" '(3601 characters)'
+if test -f 'mdel.c'
+then
+	echo shar: "will not over-write existing file 'mdel.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mdel.c'
+X/*
+X * Delete an MSDOS file
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd = -1;				/* the file descriptor for the device */
+Xint dir_start;				/* starting sector for directory */
+Xint dir_len;				/* length of directory (in sectors) */
+Xint dir_entries;			/* number of directory entries */
+Xint clus_size;				/* cluster size (in sectors) */
+Xchar *mcwd;				/* the Current Working Directory */
+Xint fat_error;				/* FAT error detected? */
+X
+Xstatic int got_signal();
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	int i, ismatch, entry, nogo, verbose, fargn;
+X	unsigned int start;
+X	char *filename, *newfile, *get_name(), *unix_name(), *get_path();
+X	char *pathname, ans[10], drive, get_drive(), last_drive, *fix_mcwd();
+X	void exit(), fat_write(), dir_write(), dir_flush(), disk_flush();
+X	struct directory *dir, *dir_read();
+X					/* catch signals */
+X	signal(SIGINT, (SIG_TYPE(*) ()) got_signal);
+X	signal(SIGTERM, (SIG_TYPE(*) ()) got_signal);
+X	signal(SIGQUIT, (SIG_TYPE(*) ()) got_signal);
+X
+X	if (argc > 1 && !strcmp(argv[1], "-v")) {
+X		verbose = 1;
+X		fargn = 2;
+X	}
+X	else {
+X		verbose = 0;
+X		fargn = 1;
+X	}
+X	if (argc < 2 || (argv[1][0] == '-' && !verbose)) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s [-v] msdosfile [msdosfiles...]\n", argv[0]);
+X		exit(1);
+X	}
+X	last_drive = 'x';
+X	mcwd = fix_mcwd();
+X
+X	for (i = fargn; i < argc; i++) {
+X		drive = get_drive(argv[i]);
+X		if (drive != last_drive) {
+X			if (last_drive != 'x') {
+X				fat_write();
+X				dir_flush();
+X				disk_flush();
+X			}
+X
+X			if (init(drive, 2)) {
+X				fprintf(stderr, "%s: Cannot initialize '%c:'\n", argv[0], drive);
+X				continue;
+X			}
+X			last_drive = drive;
+X		}
+X		filename = get_name(argv[i]);
+X		pathname = get_path(argv[i]);
+X		if (subdir(drive, pathname))
+X			continue;
+X
+X		nogo = 0;
+X		ismatch = 0;
+X		for (entry = 0; entry < dir_entries; entry++) {
+X			dir = dir_read(entry);
+X					/* if empty */
+X			if (dir->name[0] == 0x0)
+X				break;
+X					/* if erased */
+X			if (dir->name[0] == 0xe5)
+X				continue;
+X					/* if dir or volume label */
+X			if ((dir->attr & 0x10) || (dir->attr & 0x08))
+X				continue;
+X
+X			newfile = unix_name(dir->name, dir->ext);
+X					/* see it if matches the pattern */
+X			if (match(newfile, filename)) {
+X				if (verbose)
+X					printf("Removing %s\n", newfile);
+X				ismatch = 1;
+X				if (dir->attr & 0x01) {
+X					while (!nogo) {
+X						printf("%s: \"%s\" is read only, erase anyway (y/n) ? ", argv[0], newfile);
+X						gets(ans);
+X						if (ans[0] == 'y' || ans[0] == 'Y')
+X							break;
+X						if (ans[0] == 'n' || ans[0] == 'N')
+X							nogo = 1;
+X					}
+X					if (nogo)
+X						continue;
+X				}
+X				start = dir->start[1] * 0x100 + dir->start[0];
+X				if (fat_free(start))
+X					break;
+X				dir->name[0] = 0xe5;
+X				dir_write(entry, dir);
+X			}
+X		}
+X		if (fat_error)
+X			break;
+X
+X		if (!ismatch)
+X			fprintf(stderr, "%s: File \"%s\" not found\n", argv[0], filename);
+X	}
+X					/* write the FAT, flush the buffers */
+X	fat_write();
+X	dir_flush();
+X	disk_flush();
+X	close(fd);
+X	exit(0);
+X}
+X
+X/*
+X * Do a graceful exit if the program is interrupted.  This will reduce
+X * (but not eliminate) the risk of generating a corrupted disk on
+X * a user abort.
+X */
+X
+Xstatic int
+Xgot_signal()
+X{
+X	void exit(), disk_flush(), fat_write(), dir_flush();
+X
+X	if (fd < 0)
+X		exit(1);
+X	fat_write();
+X	dir_flush();
+X	disk_flush();
+X	close(fd);
+X	exit(1);
+X}
+SHAR_EOF
+if test 3601 -ne "`wc -c < 'mdel.c'`"
+then
+	echo shar: "error transmitting 'mdel.c'" '(should have been 3601 characters)'
+fi
+fi
+echo shar: "extracting 'mdir.c'" '(7059 characters)'
+if test -f 'mdir.c'
+then
+	echo shar: "will not over-write existing file 'mdir.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mdir.c'
+X/*
+X * Display an MSDOS directory
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd = -1;				/* the file descriptor for the device */
+Xint dir_start;				/* starting sector for directory */
+Xint dir_len;				/* length of directory (in sectors) */
+Xint dir_entries;			/* number of directory entries */
+Xint clus_size;				/* cluster size (in sectors) */
+Xchar *mcwd;				/* the Current Working Directory */
+Xint fat_error;				/* FAT error detected? */
+X
+Xstatic long getfree();
+Xstatic char *conv_date(), *conv_time();
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	int i, entry, files, fargn, wide, faked;
+X	long size, blocks;
+X	char *date, *time, last_drive, *fix_mcwd();
+X	char *strncpy(), newpath[MAX_PATH], *get_name(), *get_path(), *pathname;
+X	char *newfile, *filename, *unix_name(), volume[12], drive, *strpbrk();
+X	char *strcpy(), *strcat(), newname[13], *strncat(), get_drive();
+X	void exit();
+X	struct directory *dir, *dir_read();
+X
+X	fargn = 1;
+X	wide = 0;
+X	files = 0;
+X					/* first argument */
+X	if (argc > 1) {
+X		if (!strcmp(argv[1], "-w")) {
+X			wide = 1;
+X			fargn = 2;
+X		}
+X		if (argv[1][0] == '-' && !wide) {
+X			fprintf(stderr, "%s: illegal option -- %c\n", argv[0], argv[1][1]);
+X			fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X			fprintf(stderr, "Usage: %s: [-w] msdosdirectory\n", argv[0]);
+X			fprintf(stderr, "       %s: [-w] msdosfile [msdosfiles...]\n", argv[0]);
+X			exit(1);
+X		}
+X	}
+X					/* fake an argument */
+X	faked = 0;
+X	if (argc == fargn) {
+X		faked++;
+X		argc++;
+X	}
+X	last_drive = 'x';
+X	mcwd = fix_mcwd();
+X
+X	for (i = fargn; i < argc; i++) {
+X		if (faked) {
+X			drive = get_drive("");
+X			filename = get_name("");
+X			pathname = get_path("");
+X		}
+X		else {
+X			drive = get_drive(argv[i]);
+X			filename = get_name(argv[i]);
+X			pathname = get_path(argv[i]);
+X		}
+X					/* is this a new device? */
+X		if (drive != last_drive) {
+X			if (last_drive != 'x') {
+X				blocks = getfree() * MSECTOR_SIZE;
+X				if (!files)
+X					printf("File \"%s\" not found\n\n", newname);
+X				else
+X					printf("     %3d File(s)     %6ld bytes free\n\n", files, blocks);
+X			}
+X			if (init(drive, 0)) {
+X				fprintf(stderr, "%s: Cannot initialize '%c:'\n", argv[0], drive);
+X				continue;
+X			}
+X			last_drive = drive;
+X			files = 0;
+X					/* find the volume label */
+X			volume[0] = '\0';
+X			for (entry = 0; entry < dir_entries; entry++) {
+X				dir = dir_read(entry);
+X
+X					/* if empty */
+X				if (dir->name[0] == 0x0)
+X					break;
+X
+X					/* if erased */
+X				if (dir->name[0] == 0xe5)
+X					continue;
+X
+X					/* if not volume label */
+X				if (!(dir->attr & 0x08))
+X					continue;
+X
+X				strncpy(volume, (char *) dir->name, 8);
+X				volume[8] = '\0';
+X				strncat(volume, (char *) dir->ext, 3);
+X				volume[11] = '\0';
+X				break;
+X			}
+X			if (volume[0] == '\0')
+X				printf(" Volume in drive %c has no label\n", drive);
+X			else
+X				printf(" Volume in drive %c is %s\n", drive, volume);
+X		}
+X
+X		/*
+X		 * Move to "first guess" subdirectory, so that is_dir() can
+X		 * search to see if filename is also a directory.
+X		 */
+X		if (subdir(drive, pathname))
+X			continue;
+X
+X		/*
+X		 * Under MSDOS, wildcards that match directories don't
+X		 * display the contents of that directory.  So I guess I'll
+X		 * do that too.
+X		 */
+X		if ((strpbrk(filename, "*[?") == NULL) && is_dir(filename)) {
+X			strcpy(newpath, pathname);
+X			if (newpath[strlen(newpath) -1] != '/')
+X				strcat(newpath, "/");
+X			strcat(newpath, filename);
+X
+X					/* move to real subdirectory */
+X			if (subdir(drive, newpath))
+X				continue;
+X
+X			strcpy(newname, "*");
+X		}
+X		else {
+X			strcpy(newpath, pathname);
+X			strcpy(newname, filename);
+X		}
+X					/* if no files, assume '*' */
+X		if (*filename == '\0')
+X			strcpy(newname, "*");
+X
+X		printf(" Directory for %c:%s\n\n", drive, newpath);
+X
+X		for (entry = 0; entry < dir_entries; entry++) {
+X			dir = dir_read(entry);
+X					/* if empty */
+X			if (dir->name[0] == 0x0)
+X				break;
+X					/* if erased */
+X			if (dir->name[0] == 0xe5)
+X				continue;
+X					/* if a volume label */
+X			if (dir->attr & 0x08)
+X				continue;
+X
+X			newfile = unix_name(dir->name, dir->ext);
+X			if (!match(newfile, newname))
+X				continue;
+X
+X			files++;
+X			if (wide && files != 1) {
+X				if (!((files - 1) % 5))
+X					putchar('\n');
+X			}
+X			date = conv_date(dir->date[1], dir->date[0]);
+X			time = conv_time(dir->time[1], dir->time[0]);
+X			size = dir->size[3] * 0x1000000L + dir->size[2] * 0x10000L + dir->size[1] * 0x100 + dir->size[0];
+X					/* is a subdirectory */
+X			if (dir->attr & 0x10) {
+X				if (wide)
+X					printf("%-8.8s %-3.3s   ", dir->name, dir->ext);
+X				else
+X					printf("%-8.8s %-3.3s     <DIR>     %s  %s\n", dir->name, dir->ext, date, time);
+X				continue;
+X			}
+X			if (wide)
+X				printf("%-8.8s %-3.3s   ", dir->name, dir->ext);
+X			else
+X				printf("%-8.8s %-3.3s    %8ld   %s  %s\n", dir->name, dir->ext, size, date, time);
+X		}
+X		if (argc > 2)
+X			putchar('\n');
+X	}
+X	if (fd < 0)
+X		exit(1);
+X
+X	blocks = getfree() * MSECTOR_SIZE;
+X	if (!files)
+X		printf("File \"%s\" not found\n", newname);
+X	else
+X		printf("     %3d File(s)     %6ld bytes free\n", files, blocks);
+X	close(fd);
+X	exit(0);
+X}
+X
+X/*
+X * Get the amount of free space on the diskette
+X */
+X
+Xstatic long
+Xgetfree()
+X{
+X	register unsigned int i;
+X	long total;
+X	extern unsigned int num_clus;
+X	unsigned int fat_decode();
+X
+X	total = 0L;
+X	for (i = 2; i < num_clus + 2; i++) {
+X					/* if fat_decode returns zero */
+X		if (!fat_decode(i))
+X			total += clus_size;
+X	}
+X	return(total);
+X}
+X
+X/*
+X * Convert an MSDOS directory date stamp to ASCII
+X */
+X
+Xstatic char *
+Xconv_date(date_high, date_low)
+Xunsigned date_high, date_low;
+X{
+X/*
+X *	    hi byte     |    low byte
+X *	|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+X *      | | | | | | | | | | | | | | | | |
+X *      \   7 bits    /\4 bits/\ 5 bits /
+X *         year +80      month     day
+X */
+X	static char ans[9];
+X	unsigned char year, month_hi, month_low, day;
+X
+X	year = (date_high >> 1) + 80;
+X	month_hi = (date_high & 0x1) << 3;
+X	month_low = date_low >> 5;
+X	day = date_low & 0x1f;
+X	sprintf(ans, "%2d-%02d-%02d", month_hi + month_low, day, year);
+X	return(ans);
+X}
+X
+X/*
+X * Convert an MSDOS directory time stamp to ASCII.
+X */
+X
+Xstatic char *
+Xconv_time(time_high, time_low)
+Xunsigned time_high, time_low;
+X{
+X/*
+X *	    hi byte     |    low byte
+X *	|7|6|5|4|3|2|1|0|7|6|5|4|3|2|1|0|
+X *      | | | | | | | | | | | | | | | | |
+X *      \  5 bits /\  6 bits  /\ 5 bits /
+X *         hour      minutes     sec*2
+X */
+X	static char ans[7];
+X	char am_pm;
+X	unsigned char hour, min_hi, min_low;
+X
+X	hour = time_high >> 3;
+X	am_pm = (hour >= 12) ? 'p' : 'a';
+X	if (hour > 12)
+X		hour = hour - 12;
+X	if (hour == 0)
+X		hour = 12;
+X	min_hi = (time_high & 0x7) << 3;
+X	min_low = time_low >> 5;
+X	sprintf(ans, "%2d:%02d%c", hour, min_hi + min_low, am_pm);
+X	return(ans);
+X}
+X
+X/*
+X * stubs for read-only programs
+X */
+X
+Xvoid
+Xdisk_flush()
+X{
+X	extern int disk_dirty;
+X
+X	disk_dirty = 0;
+X	return;
+X}
+X
+Xvoid
+Xdir_flush()
+X{
+X	extern int dir_dirty;
+X
+X	dir_dirty = 0;
+X	return;
+X}
+SHAR_EOF
+if test 7059 -ne "`wc -c < 'mdir.c'`"
+then
+	echo shar: "error transmitting 'mdir.c'" '(should have been 7059 characters)'
+fi
+fi
+echo shar: "extracting 'mformat.c'" '(6144 characters)'
+if test -f 'mformat.c'
+then
+	echo shar: "will not over-write existing file 'mformat.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mformat.c'
+X/*
+X * Add an MSDOS filesystem to a low level formatted diskette.
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd, dir_dirty, dir_entries;
+Xlong dir_chain[MAX_DIR_SECS];
+Xunsigned char *dir_buf;
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	extern int optind;
+X	extern char *optarg;
+X	extern struct device devices[];
+X	struct bootsector boot;
+X	int i, c, oops, tracks, heads, sectors, fat_len, dir_len, clus_size;
+X	int tot_sectors, num_clus, fat_guess;
+X	long time(), now, lseek();
+X	char drive, *name, *expand();
+X	char *strncpy(), *memset(), *memcpy();
+X	unsigned char media, label[12], buf[MSECTOR_SIZE];
+X	struct device *dev;
+X	struct directory *dir, *mk_entry();
+X	void exit(), perror();
+X
+X	oops = 0;
+X	tracks = 0;
+X	heads = 0;
+X	sectors = 0;
+X	label[0] = '\0';
+X					/* get command line options */
+X	while ((c = getopt(argc, argv, "t:h:s:l:")) != EOF) {
+X		switch (c) {
+X			case 't':
+X				tracks = atoi(optarg);
+X				break;
+X			case 'h':
+X				heads = atoi(optarg);
+X				break;
+X			case 's':
+X				sectors = atoi(optarg);
+X				break;
+X			case 'l':
+X				sprintf((char *) label, "%-11.11s", optarg);
+X				break;
+X			default:
+X				oops = 1;
+X				break;
+X		}
+X	}
+X
+X	if (oops || (argc - optind) != 1) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s [-t tracks] [-h heads] [-s sectors] [-l label] device\n", argv[0]);
+X		exit(1);
+X	}
+X
+X	drive = argv[argc -1][0];
+X	if (islower(drive))
+X		drive = toupper(drive);
+X
+X					/* check out the drive letter */
+X	dev = devices;
+X	while (dev->drive) {
+X		if (dev->drive == drive)
+X			break;
+X		dev++;
+X	}
+X	if (!dev->drive) {
+X		fprintf(stderr, "Drive '%c:' not supported\n", drive);
+X		exit(1);
+X	}
+X	if (dev->tracks == 0) {
+X		fprintf(stderr, "Non-removable media is not supported\n");
+X		exit(1);
+X	}
+X					/* find the right one */
+X	if (!dev->gioctl) {
+X		while (dev->drive == drive) {
+X			if ((!tracks || dev->tracks == tracks) && (!heads || dev->heads == heads) && (!sectors || dev->sectors == sectors))
+X				break;
+X			dev++;
+X		}
+X	}
+X	if (dev->drive != drive) {
+X		fprintf(stderr, "%s: Paramaters not supported\n", argv[0]);
+X		exit(1);
+X	}
+X					/* open the device */
+X	name = expand(dev->name);
+X	if ((fd = open(name, 2 | dev->mode)) < 0) {
+X		perror("init: open");
+X		exit(1);
+X	}
+X					/* fill in the blanks */
+X	if (!tracks)
+X		tracks = dev->tracks;
+X	if (!heads)
+X		heads = dev->heads;
+X	if (!sectors)
+X		sectors = dev->sectors;
+X
+X					/* set parameters, if needed */
+X	if (dev->gioctl) {
+X		if ((*(dev->gioctl)) (fd, tracks, heads, sectors))
+X			exit(1);
+X	}
+X					/* do a "test" read */
+X	if (read(fd, (char *) buf, MSECTOR_SIZE) != MSECTOR_SIZE) {
+X		fprintf(stderr, "%s: Error reading from '%s', wrong parameters?\n", argv[0], name);
+X		exit(1);
+X	}
+X					/* get the parameters */
+X	tot_sectors = tracks * heads * sectors;
+X	switch (tot_sectors) {
+X		case 320:		/* 40t * 1h * 8s = 160k */
+X			media = 0xfe;
+X			clus_size = 1;
+X			dir_len = 4;
+X			fat_len = 1;
+X			break;
+X		case 360:		/* 40t * 1h * 9s = 180k */
+X			media = 0xfc;
+X			clus_size = 1;
+X			dir_len = 4;
+X			fat_len = 2;
+X			break;
+X		case 640:		/* 40t * 2h * 8s = 320k */
+X			media = 0xff;
+X			clus_size = 2;
+X			dir_len = 7;
+X			fat_len = 1;
+X			break;
+X		case 720:		/* 40t * 2h * 9s = 360k */
+X			media = 0xfd;
+X			clus_size = 2;
+X			dir_len = 7;
+X			fat_len = 2;
+X			break;
+X		case 1440:		/* 80t * 2h * 9s = 720k */
+X			media = 0xf9;
+X			clus_size = 2;
+X			dir_len = 7;
+X			fat_len = 3;
+X			break;
+X		case 2400:		/* 80t * 2h * 15s = 1.2m */
+X			media = 0xf9;
+X			clus_size = 1;
+X			dir_len = 14;
+X			fat_len = 7;
+X			break;
+X		case 2880:		/* 80t * 2h * 18s = 1.44m */
+X			media = 0xf0;
+X			clus_size = 1;
+X			dir_len = 14;
+X			fat_len = 9;
+X			break;
+X		default:		/* a non-standard format */
+X			media = 0xf0;
+X			if (heads == 1)
+X				clus_size = 1;
+X			else
+X				clus_size = (tot_sectors > 2000) ? 1 : 2;
+X			if (heads == 1)
+X				dir_len = 4;
+X			else
+X				dir_len = (tot_sectors > 2000) ? 14 : 7;
+X			/*
+X			 * Estimate the fat length, then figure it out.  The
+X			 * 341 is the number of 12 bit fat entries in a sector.
+X			 */
+X			fat_guess = ((tot_sectors / clus_size) / 341.0) + 0.95;
+X			num_clus = (tot_sectors -dir_len - (2 * fat_guess) -1) / clus_size;
+X			fat_len = (num_clus / 341.0) + 1;
+X			break;
+X	}
+X					/* the boot sector */
+X	memset((char *) &boot, '\0', MSECTOR_SIZE);
+X	boot.jump[0] = 0xeb;
+X	boot.jump[1] = 0x44;
+X	boot.jump[2] = 0x90;
+X	strncpy((char *) boot.banner, "Mtools  ", 8);
+X	boot.secsiz[0] = 512 % 0x100;
+X	boot.secsiz[1] = 512 / 0x100;
+X	boot.clsiz = (unsigned char) clus_size;
+X	boot.nrsvsect[0] = 1;
+X	boot.nrsvsect[1] = 0;
+X	boot.nfat = 2;
+X	boot.dirents[0] = (dir_len * 16) % 0x100;
+X	boot.dirents[1] = (dir_len * 16) / 0x100;
+X	boot.psect[0] = tot_sectors % 0x100;
+X	boot.psect[1] = tot_sectors / 0x100;
+X	boot.descr = media;
+X	boot.fatlen[0] = fat_len % 0x100;
+X	boot.fatlen[1] = fat_len / 0x100;
+X	boot.nsect[0] = sectors % 0x100;
+X	boot.nsect[1] = sectors / 0x100;
+X	boot.nheads[0] = heads % 0x100;
+X	boot.nheads[1] = heads / 0x100;
+X
+X					/* write the boot */
+X	lseek(fd, 0L, 0);
+X	write(fd, (char *) &boot, MSECTOR_SIZE);
+X					/* first fat */
+X	memset((char *) buf, '\0', MSECTOR_SIZE);
+X	buf[0] = media;
+X	buf[1] = 0xff;
+X	buf[2] = 0xff;
+X	write(fd, (char *) buf, MSECTOR_SIZE);
+X	memset((char *) buf, '\0', MSECTOR_SIZE);
+X	for (i = 1; i < fat_len; i++)
+X		write(fd, (char *) buf, MSECTOR_SIZE);
+X					/* second fat */
+X	buf[0] = media;
+X	buf[1] = 0xff;
+X	buf[2] = 0xff;
+X	write(fd, (char *) buf, MSECTOR_SIZE);
+X	memset((char *) buf, '\0', MSECTOR_SIZE);
+X	for (i = 1; i < fat_len; i++)
+X		write(fd, (char *) buf, MSECTOR_SIZE);
+X					/* the root directory */
+X	if (label[0] != '\0') {
+X		time(&now);
+X		dir = mk_entry(label, 0x08, 0, 0L, now);
+X		memcpy((char *) buf, (char *) dir, MDIR_SIZE);
+X	}
+X	write(fd, (char *) buf, MSECTOR_SIZE);
+X	memset((char *) buf, '\0', MSECTOR_SIZE);
+X	for (i = 1; i < dir_len; i++)
+X		write(fd, (char *) buf, MSECTOR_SIZE);
+X	close(fd);
+X	exit(0);
+X}
+X
+X/* hooks for the missing parts */
+Xvoid disk_write() {}
+SHAR_EOF
+if test 6144 -ne "`wc -c < 'mformat.c'`"
+then
+	echo shar: "error transmitting 'mformat.c'" '(should have been 6144 characters)'
+fi
+fi
+echo shar: "extracting 'mkmanifest.c'" '(2306 characters)'
+if test -f 'mkmanifest.c'
+then
+	echo shar: "will not over-write existing file 'mkmanifest.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mkmanifest.c'
+X/*
+X * A program to create a manifest (shiping list) that is a shell script
+X * to return a Unix file name to it's original state after it has been
+X * clobbered by MSDOS's file name restrictions.
+X *
+X *	This code also used in arc, mtools, and pcomm
+X */
+X
+X#ifdef BSD
+X#define strrchr rindex
+X#endif /* BSD */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	int i;
+X	char *name, *new_name, *dos_name(), *strrchr();
+X	void exit();
+X
+X	if (argc == 1) {
+X		fprintf(stderr, "Usage: mkmanifest <list-of-files>\n");
+X		exit(1);
+X	}
+X
+X	for (i=1; i<argc; i++) {
+X					/* zap the leading path */
+X		if (name = strrchr(argv[i], '/'))
+X			name++;
+X		else
+X			name = argv[i];
+X					/* create new name */
+X		new_name = dos_name(name);
+X
+X		if (strcmp(new_name, name))
+X			printf("mv %s %s\n", new_name, name);
+X	}
+X	exit(0);
+X}
+X
+Xchar *
+Xdos_name(name)
+Xchar *name;
+X{
+X	static char *dev[9] = {"con", "aux", "com1", "com2", "lpt1", "prn",
+X	"lpt2", "lpt3", "nul"};
+X	char *s, *temp, *ext, *strcpy(), *strpbrk(), *strcat();
+X	char buf[15];
+X	int i, dot;
+X	static char ans[13];
+X
+X	strcpy(buf, name);
+X	temp = buf;
+X					/* separate the name from extention */
+X	ext = "";
+X	dot = 0;
+X	for (i=strlen(buf)-1; i>=0; i--) {
+X		if (buf[i] == '.' && !dot) {
+X			dot = 1;
+X			buf[i] = '\0';
+X			ext = &buf[i+1];
+X		}
+X		if (isupper(buf[i]))
+X			buf[i] = tolower(buf[i]);
+X	}
+X					/* if no name */
+X	if (*temp == '\0')
+X		temp = "x";
+X					/* if name is a device */
+X	for (i=0; i<9; i++) {
+X		if (!strcmp(temp, dev[i])) 
+X			*temp = 'x';
+X	}
+X					/* name too long? */
+X	if (strlen(temp) > 8)
+X		*(temp+8) = '\0';
+X					/* extention too long? */
+X	if (strlen(ext) > 3)
+X		*(ext+3) = '\0';
+X					/* illegal characters? */
+X	while (s = strpbrk(temp, "^+=/[]:',?*\\<>|\". "))
+X		*s = 'x';
+X
+X	while (s = strpbrk(ext, "^+=/[]:',?*\\<>|\". "))
+X		*s = 'x';
+X
+X	strcpy(ans, temp);
+X	if (*ext) {
+X		strcat(ans, ".");
+X		strcat(ans, ext);
+X	}
+X	return(ans);
+X}
+X
+X#ifdef BSD
+X/*
+X * Return ptr to first occurrence of any character from `brkset'
+X * in the character string `string'; NULL if none exists.
+X */
+X
+Xchar *
+Xstrpbrk(string, brkset)
+Xregister char *string, *brkset;
+X{
+X	register char *p;
+X
+X	if (!string || !brkset)
+X		return(0);
+X	do {
+X		for (p = brkset; *p != '\0' && *p != *string; ++p)
+X			;
+X		if (*p != '\0')
+X			return(string);
+X	}
+X	while (*string++);
+X	return(0);
+X}
+X#endif /* BSD */
+SHAR_EOF
+if test 2306 -ne "`wc -c < 'mkmanifest.c'`"
+then
+	echo shar: "error transmitting 'mkmanifest.c'" '(should have been 2306 characters)'
+fi
+fi
+echo shar: "extracting 'mlabel.c'" '(3079 characters)'
+if test -f 'mlabel.c'
+then
+	echo shar: "will not over-write existing file 'mlabel.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mlabel.c'
+X/*
+X * Make an MSDOS volume label
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include <ctype.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd = -1;				/* the file descriptor for the device */
+Xint dir_start;				/* starting sector for directory */
+Xint dir_len;				/* length of directory (in sectors) */
+Xint dir_entries;			/* number of directory entries */
+Xint clus_size;				/* cluster size (in sectors) */
+Xchar *mcwd;				/* the Current Working Directory */
+Xint fat_error;				/* FAT error detected? */
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	int entry, slot, fargn, verbose, oops;
+X	char filename[30], *strncpy(), drive, ans[10], *strncat();
+X	char *strcpy(), *fix_mcwd();
+X	unsigned char fixed[12], vol[12];
+X	void exit(), dir_write(), dir_flush(), disk_flush();
+X	struct directory *dir, *dir_read(), *mk_entry();
+X	long time(), now;
+X
+X	fargn = 1;
+X	verbose = 0;
+X	oops = 0;
+X	if (argc > 1) {
+X		if (!strcmp(argv[1], "-v")) {
+X			fargn = 2;
+X			verbose = 1;
+X		}
+X		if (argv[1][0] == '-' && !verbose)
+X			oops++;
+X	}
+X	if (argc < 2 || argv[fargn][1] != ':' || oops) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s [-v] drive:\n", argv[0]);
+X		exit(1);
+X	}
+X	mcwd = fix_mcwd();
+X
+X	drive = argv[fargn][0];
+X	if (islower(drive))
+X		drive = toupper(drive);
+X
+X	if (init(drive, 2)) {
+X		fprintf(stderr, "%s: Cannot initialize '%c:'\n", argv[0], drive);
+X		exit(1);
+X	}
+X					/* see if a label exists and get slot */
+X	slot = -1;
+X	vol[0] = '\0';
+X	for (entry = 0; entry < dir_entries; entry++) {
+X		dir = dir_read(entry);
+X					/* if empty */
+X		if (dir->name[0] == 0x0) {
+X			if (slot < 0)
+X				slot = entry;
+X			break;
+X		}
+X					/* if erased */
+X		if (dir->name[0] == 0xe5) {
+X			if (slot < 0)
+X				slot = entry;
+X			continue;
+X		}
+X					/* if not a volume label */
+X		if (!(dir->attr & 0x08))
+X			continue;
+X
+X		slot = entry;
+X		strncpy((char *) vol, (char *) dir->name, 8);
+X		vol[8] = '\0';
+X		strncat((char *) vol, (char *) dir->ext, 3);
+X		vol[11] = '\0';
+X
+X		printf("Volume in drive %c is \"%s\"\n", drive, vol);
+X		break;
+X	}
+X	if (slot < 0) {
+X		fprintf(stderr, "%s: No directory slots\n", argv[0]);
+X		exit(1);
+X	}
+X	if (vol[0] == '\0')
+X		printf("Volume in drive %c is unlabeled\n", drive);
+X
+X					/* ask for new label */
+X	printf("Enter the new volume label (11 characters): ");
+X	gets(filename);
+X	if (filename[0] != '\0') {
+X		sprintf((char *) fixed, "%-11.11s", filename);
+X		if (strlen(filename) > 11 && verbose)
+X			printf("New label is \"%s\"\n", fixed);
+X	}
+X	else {
+X		if (vol[0] == '\0')
+X			exit(0);
+X
+X		printf("Delete volume label (y/n): ");
+X		gets(ans);
+X		if (ans[0] == 'y' || ans[0] == 'Y') {
+X			strcpy((char *) fixed, (char *) vol);
+X			fixed[0] = 0xe5;
+X		}
+X		else
+X			exit(0);
+X	}
+X					/* make directory entry */
+X	time(&now);
+X	dir = mk_entry(fixed, 0x08, 0, 0L, now);
+X	dir_write(slot, dir);
+X
+X	dir_flush();
+X	disk_flush();
+X	close(fd);
+X	exit(0);
+X}
+SHAR_EOF
+if test 3079 -ne "`wc -c < 'mlabel.c'`"
+then
+	echo shar: "error transmitting 'mlabel.c'" '(should have been 3079 characters)'
+fi
+fi
+echo shar: "extracting 'mmd.c'" '(5127 characters)'
+if test -f 'mmd.c'
+then
+	echo shar: "will not over-write existing file 'mmd.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'mmd.c'
+X/*
+X * Make an MSDOS subdirectory
+X *
+X * Emmet P. Gray			US Army, HQ III Corps & Fort Hood
+X * ...!uunet!uiucuxc!fthood!egray	Attn: AFZF-DE-ENV
+X * fthood!egray@uxc.cso.uiuc.edu	Directorate of Engineering & Housing
+X * 					Environmental Management Office
+X * 					Fort Hood, TX 76544-5057
+X */
+X
+X#include <stdio.h>
+X#include <signal.h>
+X#include "msdos.h"
+X#include "patchlevel.h"
+X
+Xint fd = -1;				/* the file descriptor for the device */
+Xint dir_start;				/* starting sector for directory */
+Xint dir_len;				/* length of directory (in sectors) */
+Xint dir_entries;			/* number of directory entries */
+Xint clus_size;				/* cluster size (in sectors) */
+Xchar *mcwd;				/* the Current Working Directory */
+Xint fat_error;				/* FAT error detected? */
+X
+Xstatic int got_signal();
+Xstatic void empty_dir();
+X
+Xmain(argc, argv)
+Xint argc;
+Xchar *argv[];
+X{
+X	int i, entry, slot, fargn, verbose, oops;
+X	extern unsigned int end_fat;
+X	unsigned int fat, dot, next_fat();
+X	char filename[13], *newfile, drive, get_drive(), *get_path();
+X	char *strcpy(), *fix_mcwd(), *pathname, *unix_name(), last_drive;
+X	unsigned char *fixed, *dos_name();
+X	void exit(), fat_write(), dir_write(), disk_flush(), dir_flush();
+X	struct directory *dir, *dir_read(), *mk_entry();
+X	long time(), now;
+X					/* catch signals */
+X	signal(SIGINT, (SIG_TYPE(*) ()) got_signal);
+X	signal(SIGTERM, (SIG_TYPE(*) ()) got_signal);
+X	signal(SIGQUIT, (SIG_TYPE(*) ()) got_signal);
+X
+X	fargn = 1;
+X	verbose = 0;
+X	oops = 0;
+X	if (argc > 1) {
+X		if (!strcmp(argv[1], "-v")) {
+X			fargn = 2;
+X			verbose = 1;
+X		}
+X		if (argv[1][0] == '-' && !verbose)
+X			oops++;
+X	}
+X	if (argc == 1 || oops) {
+X		fprintf(stderr, "Mtools version %s, dated %s\n", VERSION, DATE);
+X		fprintf(stderr, "Usage: %s [-v] msdosdirectory [msdosdirectories...]\n", argv[0]);
+X		exit(1);
+X	}
+X	last_drive = 'x';
+X	mcwd = fix_mcwd();
+X
+X	for (i = fargn; i < argc; i++) {
+X		drive = get_drive(argv[i]);
+X		if (drive != last_drive) {
+X			if (last_drive != 'x') {
+X				fat_write();
+X				dir_flush();
+X				disk_flush();
+X			}
+X
+X			if (init(drive, 2)) {
+X				fprintf(stderr, "%s: Cannot initialize '%c:'\n", argv[0], drive);
+X				continue;
+X			}
+X			last_drive = drive;
+X		}
+X					/* serves the get_name() function too */
+X		fixed = dos_name(argv[i], verbose);
+X
+X		strcpy(filename, unix_name(fixed, fixed + 8));
+X		pathname = get_path(argv[i]);
+X
+X		if (subdir(drive, pathname))
+X			continue;
+X					/* see if exists and get slot */
+X		slot = -1;
+X		dot = 0;
+X		oops = 0;
+X		for (entry = 0; entry < dir_entries; entry++) {
+X			dir = dir_read(entry);
+X
+X					/* if empty */
+X			if (dir->name[0] == 0x0) {
+X				if (slot < 0)
+X					slot = entry;
+X				break;
+X			}
+X					/* if erased */
+X			if (dir->name[0] == 0xe5) {
+X				if (slot < 0)
+X					slot = entry;
+X				continue;
+X			}
+X					/* if not a directory */
+X			if (!(dir->attr & 0x10))
+X				continue;
+X
+X			newfile = unix_name(dir->name, dir->ext);
+X					/* save the 'dot' directory info */
+X			if (!strcmp(".", newfile))
+X				dot = dir->start[1] * 0x100 + dir->start[0];
+X
+X			if (!strcmp(filename, newfile)) {
+X				fprintf(stderr, "%s: Directory \"%s\" already exists\n", argv[0], filename);
+X				oops++;
+X				break;
+X			}
+X		}
+X		if (oops)
+X			continue;
+X					/* no '.' entry means root directory */
+X		if (dot == 0 && slot < 0) {
+X			fprintf(stderr, "%s: No directory slots\n", argv[0]);
+X			continue;
+X		}
+X					/* make the directory grow */
+X		if (dot && slot < 0) {
+X			if (dir_grow(dot)) {
+X				fprintf(stderr, "%s: Disk full\n", argv[0]);
+X				continue;
+X			}
+X					/* first slot in the new part */
+X			slot = entry;
+X		}
+X					/* grab a starting cluster */
+X		if ((fat = next_fat(0)) == 1) {
+X			fprintf(stderr, "%s: Disk full\n", argv[0]);
+X			continue;
+X		}
+X					/* make directory entry */
+X		time(&now);
+X		dir = mk_entry(fixed, 0x10, fat, 0L, now);
+X		dir_write(slot, dir);
+X					/* write the cluster */
+X		empty_dir(fat, dot);
+X		fat_encode(fat, end_fat);
+X	}
+X					/* write the FAT, flush the buffers */
+X	fat_write();
+X	dir_flush();
+X	disk_flush();
+X	close(fd);
+X	exit(0);
+X}
+X
+X/*
+X * Write an empty directory 'template' to the cluster starting at 'dot'.
+X */
+X
+Xstatic void
+Xempty_dir(dot, dot_dot)
+Xunsigned int dot, dot_dot;
+X{
+X	int buflen;
+X	long start;
+X	char buf[MAX_CLUSTER], *memcpy(), *memset();
+X	struct directory *dir, *mk_entry();
+X	void disk_write();
+X	long time(), now;
+X
+X	start = (long) (dot - 2) * clus_size + dir_start + dir_len;
+X
+X	buflen = clus_size * MSECTOR_SIZE;
+X	time(&now);
+X					/* make the '.' and '..' entries */
+X	dir = mk_entry((unsigned char *) ".          ", 0x10, dot, 0L, now);
+X	memcpy(&buf[0], (char *) dir, MDIR_SIZE);
+X	dir = mk_entry((unsigned char *) "..         ", 0x10, dot_dot, 0L, now);
+X	memcpy(&buf[MDIR_SIZE], (char *) dir, MDIR_SIZE);
+X
+X					/* zero the remainder */
+X	memset(&buf[2 * MDIR_SIZE], '\0', buflen - (2 * MDIR_SIZE));
+X
+X					/* write the cluster */
+X	disk_write(start, (unsigned char *) buf, buflen);
+X	return;
+X}
+X
+X/*
+X * Do a graceful exit if the program is interrupted.  This will reduce
+X * (but not eliminate) the risk of generating a corrupted disk on
+X * a user abort.
+X */
+X
+Xstatic int
+Xgot_signal()
+X{
+X	void exit(), disk_flush(), fat_write(), dir_flush();
+X
+X	if (fd < 0)
+X		exit(1);
+X	fat_write();
+X	dir_flush();
+X	disk_flush();
+X	close(fd);
+X	exit(1);
+X}
+SHAR_EOF
+if test 5127 -ne "`wc -c < 'mmd.c'`"
+then
+	echo shar: "error transmitting 'mmd.c'" '(should have been 5127 characters)'
+fi
+fi
+exit 0
+#	End of shell archive

@@ -1,0 +1,424 @@
+*** bak/keyboard.S	Tue Dec 24 18:20:53 1991
+--- ../kernel/chr_drv/keyboard.S	Tue Dec 24 20:00:29 1991
+***************
+*** 44,49 ****
+--- 44,51 ----
+  	movl $0x10,%eax
+  	mov %ax,%ds
+  	mov %ax,%es
++ 	movl _blankinterval,%eax
++ 	movl %eax,_blankcount
+  	xorl %al,%al		/* %eax is scan code */
+  	inb $0x60,%al
+  	cmpb $0xe0,%al
+*** bak/sched.c	Tue Dec 24 18:20:10 1991
+--- ../kernel/sched.c	Tue Dec 24 20:02:22 1991
+***************
+*** 304,310 ****
+--- 304,316 ----
+  
+  void do_timer(long cpl)
+  {
++ 	static int blanked = 0;
+  	extern int beepcount;
++ 	extern int blankcount;
++ 	extern int blankinterval;
++ 	extern void blank_screen(void);
++ 	extern void unblank_screen(void);
++ 
+  	extern void sysbeepstop(void);
+  
+  	if (beepcount)
+***************
+*** 311,316 ****
+--- 317,337 ----
+  		if (!--beepcount)
+  			sysbeepstop();
+  
++ 	if (blankcount)
++ 	{	blankcount--;
++ 		if (blanked)
++ 		{ if (blankcount == (blankinterval-1)) 
++ 	  	  { blanked = 0;
++ 	  	    unblank_screen(); 
++ 	  	  }  
++ 	  	}   
++ 	  	else
++ 	 	  if (!blankcount)
++ 		  { blanked = 1;
++ 		    blank_screen();
++ 		  }
++ 	}
++ 			
+  	if (cpl)
+  		current->utime++;
+  	else
+*** bak/setterm.c	Wed Dec 25 00:06:08 1991
+--- setterm.c	Wed Dec 25 00:14:36 1991
+***************
+*** 25,30 ****
+--- 25,31 ----
+   *   [ -underline [on|off] ]
+   *   [ -store ]
+   *   [ -clear [all|rest] ]
++  *   [ -blank [0-60]
+   *
+   *
+   * Semantics:
+***************
+*** 113,119 ****
+  int opt_term, opt_reset, opt_initialize, opt_cursor, opt_keyboard;
+  int opt_linewrap, opt_snow, opt_softscroll, opt_default, opt_foreground;
+  int opt_background, opt_bold, opt_blink, opt_reverse, opt_underline;
+! int opt_store, opt_clear;
+  
+  /* Option controls.  The variable names have been contracted to ensure
+   * uniqueness.
+--- 114,120 ----
+  int opt_term, opt_reset, opt_initialize, opt_cursor, opt_keyboard;
+  int opt_linewrap, opt_snow, opt_softscroll, opt_default, opt_foreground;
+  int opt_background, opt_bold, opt_blink, opt_reverse, opt_underline;
+! int opt_store, opt_clear, opt_blank;
+  
+  /* Option controls.  The variable names have been contracted to ensure
+   * uniqueness.
+***************
+*** 124,129 ****
+--- 125,131 ----
+  int opt_ke_type;		/* Keyboard type. */
+  int opt_fo_color, opt_ba_color;	/* Colors. */
+  int opt_cl_all;			/* Clear all or rest. */
++ int opt_bl_min;			/* Blank screen. */
+  
+  /* Command line parsing routines.
+   *
+***************
+*** 264,269 ****
+--- 266,291 ----
+    }
+  }
+  
++ void parse_blank(argc, argv, option, opt_all, bad_arg)
++ int argc;			/* Number of arguments for this option. */
++ char *argv[];			/* Arguments for this option. */
++ int *option;			/* Clear flag to set. */
++ int *opt_all;			/* Clear all switch to set or reset. */
++ int *bad_arg;			/* Set to true if an error is detected. */
++ {
++ /* Parse a -clear specification. */
++ 
++   if (argc > 1 || *option) *bad_arg = TRUE;
++   *option = TRUE;
++   if (argc == 1) {
++ 	*opt_all = atoi(argv[0]);
++ 	if ((*opt_all > 60) || (*opt_all < 0))
++ 		*bad_arg = TRUE;
++   } else {
++ 	*opt_all = 0;
++   }
++ }
++ 
+  void parse_option(option, argc, argv, bad_arg)
+  char *option;			/* Option with leading '-' removed. */
+  int argc;			/* Number of arguments for this option. */
+***************
+*** 306,311 ****
+--- 328,335 ----
+  	parse_none(argc, argv, &opt_store, bad_arg);
+    else if (strcmp(option, "clear") == 0)
+  	parse_clear(argc, argv, &opt_clear, &opt_cl_all, bad_arg);
++   else if (strcmp(option, "blank") == 0)
++ 	parse_blank(argc, argv, &opt_blank, &opt_bl_min, bad_arg);
+    else
+  	*bad_arg = TRUE;
+  }
+***************
+*** 339,344 ****
+--- 363,369 ----
+    fprintf(stderr, "  [ -underline [on|off] ]\n");
+    fprintf(stderr, "  [ -store ]\n");
+    fprintf(stderr, "  [ -clear [all|rest] ]\n");
++   fprintf(stderr, "  [ -blank [0-60] ]\n");
+  }
+  
+  char tc_ent_buf[TC_ENT_SIZE];	/* Buffer for storing a termcap entry. */
+***************
+*** 508,513 ****
+--- 533,542 ----
+  	else
+  		printf("%s", tc_entry("cd"));
+    }
++ 
++   /* -blank [0-60]. */
++   if (opt_blank) 
++     printf("%s[%dl", ESC, opt_bl_min );
+  }
+  
+  void main(argc, argv)
+*** bak/console.c	Tue Dec 24 18:20:25 1991
+--- ../kernel/chr_drv/console.c	Wed Dec 25 00:40:42 1991
+***************
+*** 29,34 ****
+--- 29,35 ----
+  
+  #include <linux/sched.h>
+  #include <linux/tty.h>
++ #include <linux/config.h>
+  #include <asm/io.h>
+  #include <asm/system.h>
+  #include <string.h>
+***************
+*** 42,48 ****
+--- 43,53 ----
+  #define ORIG_VIDEO_PAGE		(*(unsigned short *)0x90004)
+  #define ORIG_VIDEO_MODE		((*(unsigned short *)0x90006) & 0xff)
+  #define ORIG_VIDEO_COLS 	(((*(unsigned short *)0x90006) & 0xff00) >> 8)
++ #ifdef VIDEO_VGA_50_LINES
+  #define ORIG_VIDEO_LINES	(50)
++ #else
++ #define ORIG_VIDEO_LINES	(25)
++ #endif
+  #define ORIG_VIDEO_EGA_AX	(*(unsigned short *)0x90008)
+  #define ORIG_VIDEO_EGA_BX	(*(unsigned short *)0x9000a)
+  #define ORIG_VIDEO_EGA_CX	(*(unsigned short *)0x9000c)
+***************
+*** 67,74 ****
+  static unsigned short	video_port_val;		/* Video register value port	*/
+  static int candocolor = 0;
+  
+- #define MAX_SCR_ROWS 50
+  #define MAX_SCR_COLS 80
+  #define SCR_CHARS (MAX_SCR_ROWS * MAX_SCR_COLS)
+  #define SCR_SIZE (video_size_row*video_num_lines)
+  static struct {
+--- 72,79 ----
+  static unsigned short	video_port_val;		/* Video register value port	*/
+  static int candocolor = 0;
+  
+  #define MAX_SCR_COLS 80
++ #define MAX_SCR_ROWS  ORIG_VIDEO_LINES
+  #define SCR_CHARS (MAX_SCR_ROWS * MAX_SCR_COLS)
+  #define SCR_SIZE (video_size_row*video_num_lines)
+  static struct {
+***************
+*** 115,120 ****
+--- 120,128 ----
+  #define video_erase_char  (vc_cons[currcons].vc_video_erase_char)	
+  #define iscolor (vc_cons[currcons].vc_iscolor)
+  int fg_console = 0;
++ static int blanked_fg = -1;
++ int blankinterval = 0;
++ int unsigned short blankcount = 0;
+  
+  static void sysbeep(void);
+  
+***************
+*** 394,399 ****
+--- 402,415 ----
+  	sti();
+  }
+  
++ static inline void hide_cursor(int currcons)
++ {
++ 	outb_p(14, video_port_reg);
++ 	outb_p(0xff&((scr_end-video_mem_start)>>9), video_port_val);
++ 	outb_p(15, video_port_reg);
++ 	outb_p(0xff&((scr_end-video_mem_start)>>1), video_port_val);
++ }
++ 
+  static void respond(int currcons, struct tty_struct * tty)
+  {
+  	char * p = RESPONSE;
+***************
+*** 513,519 ****
+  	gotoxy(currcons,saved_x, saved_y);
+  }
+  
+! static int myattr;
+  void con_write(struct tty_struct * tty)
+  {
+  	int nr;
+--- 529,535 ----
+  	gotoxy(currcons,saved_x, saved_y);
+  }
+  
+! 
+  void con_write(struct tty_struct * tty)
+  {
+  	int nr;
+***************
+*** 524,537 ****
+  	for (currcons = 0; currcons<=NR_CONSOLES; currcons++)
+  	  if (tty == TTY_TABLE(currcons))
+  	    break;
+- 	if (currcons>NR_CONSOLES)
+- 	  panic("con_write: illegal tty");
+  	if (!currcons)  /* tty0 always writes to the current one. */
+! 	  currcons = fg_console;
+  	else 
+  	  currcons--;
+   	   
+-         myattr = attr;
+  	nr = CHARS(tty->write_q);
+  	while (nr--) {
+  		GETCH(tty->write_q,c);
+--- 540,552 ----
+  	for (currcons = 0; currcons<=NR_CONSOLES; currcons++)
+  	  if (tty == TTY_TABLE(currcons))
+  	    break;
+  	if (!currcons)  /* tty0 always writes to the current one. */
+! 	  currcons = (fg_console>=0 ? fg_console : blanked_fg);
+  	else 
+  	  currcons--;
++ 	if ((currcons>=NR_CONSOLES) || (currcons<0))
++ 	  panic("con_write: illegal tty");
+   	   
+  	nr = CHARS(tty->write_q);
+  	while (nr--) {
+  		GETCH(tty->write_q,c);
+***************
+*** 543,551 ****
+  						pos -= video_size_row;
+  						lf(currcons);
+  					}
+! 					__asm__("movb _myattr,%%ah\n\t"
+  						"movw %%ax,%1\n\t"
+! 						::"a" (c),"m" (*(short *)pos)
+  						:"ax");
+  					pos += 2;
+  					x++;
+--- 558,567 ----
+  						pos -= video_size_row;
+  						lf(currcons);
+  					}
+! 					__asm__("movb %2,%%ah\n\t"
+  						"movw %%ax,%1\n\t"
+! 						::"a" (c),"m" (*(short *)pos),
+! 						"m" (attr)
+  						:"ax");
+  					pos += 2;
+  					x++;
+***************
+*** 599,605 ****
+  					par[npar]=0;
+  				npar=0;
+  				state=3;
+! 				/*if (c =='[')
+  				{ state=5;
+  				  break;
+  				} */ 
+--- 615,621 ----
+  					par[npar]=0;
+  				npar=0;
+  				state=3;
+! 				/*if (c =='[')  Function key
+  				{ state=5;
+  				  break;
+  				} */ 
+***************
+*** 689,694 ****
+--- 705,716 ----
+  					case 'u':
+  						restore_cur(currcons);
+  						break;
++ 					case 'l':
++ 						if ((par[0]>=0) || (par[0]<=60))
++ 						{ blankinterval = HZ*60*par[0];
++ 						  blankcount = blankinterval;
++ 						}
++ 						break;	
+  				}
+  				break;
+  			case 5:
+***************
+*** 737,745 ****
+  					pos -= video_size_row;
+  					lf(currcons);
+  				}
+! 				__asm__("movb _myattr,%%ah\n\t"
+  					"movw %%ax,%1\n\t"
+! 					::"a" (ch),"m" (*(short *)pos)
+  					:"ax");
+  				pos += 2;
+  				x++;
+--- 759,768 ----
+  					pos -= video_size_row;
+  					lf(currcons);
+  				}
+! 				__asm__("movb %2,%%ah\n\t"
+  					"movw %%ax,%1\n\t"
+! 					::"a" (ch),"m" (*(short *)pos),
+! 					"m" (attr)
+  					:"ax");
+  				pos += 2;
+  				x++;
+***************
+*** 773,778 ****
+--- 796,802 ----
+  	video_num_lines = ORIG_VIDEO_LINES;
+  	video_page = ORIG_VIDEO_PAGE;
+  	video_erase_char = 0x0720;
++ 	blankcount = blankinterval;
+  	
+  	if (ORIG_VIDEO_MODE == 7)			/* Is this a monochrome display? */
+  	{
+***************
+*** 968,978 ****
+--- 992,1038 ----
+      SCR_SIZE);
+  }
+  
++ inline void * memsetw(void * s,unsigned short c,int count)
++ {
++ __asm__("cld\n\t"
++ 	"rep\n\t"
++ 	"stosw"
++ 	::"a" (c),"D" (s),"c" (count)
++ 	:"cx","di");
++ return s;
++ }
++ 
++ void blank_screen()
++ { 
++   if (blanked_fg > -1)
++     return;
++   blanked_fg = fg_console;
++   get_scrmem(fg_console);
++   hide_cursor(fg_console);
++   fg_console = -1;
++   memsetw((void *)video_mem_base, 0x0720, SCR_SIZE );
++ }
++ 
++ void unblank_screen()
++ {
++   if (blanked_fg <= -1)
++     return;
++   fg_console = blanked_fg;
++   blanked_fg = -1;
++   set_scrmem(fg_console);
++   if (video_type == VIDEO_TYPE_EGAC || video_type == VIDEO_TYPE_EGAM) 
++     set_origin(fg_console);
++   set_cursor(fg_console);
++ }
++ 
++ 
+  static void swap_screen(int num)
+  {
+    if (num == fg_console)
+      return;
+    cli();
++   if (fg_console == -1)
++     unblank_screen();
+    get_scrmem(fg_console); 
+    fg_console = num;
+    table_list[0] = &tty_table[num+1].read_q;  
+***************
+*** 1010,1016 ****
+    /* set_leds(new_console,old_console); */
+    swap_screen(new_console);
+  }
+- 
+  
+  extern void show_stat(void);
+  
+--- 1070,1075 ----

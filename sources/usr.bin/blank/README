@@ -1,0 +1,46 @@
+This patch enables screen blanking for Virtual Consoles with linux.
+
+In effect, we get this for free, since VC already allocates a buffer
+per console tty, one of which (the currently actives one) wasn't
+being used anyways.  The blanker simply uses this buffer, and
+copys blanks to the real screen buffer.
+
+By default, blanking will be disabled at bootup time.  To enable it,
+use 
+
+  setterm -blank n
+
+
+where n is a number between 0 and 60.  Setting it to zero disables
+it again.  I usually use the number 10, meaning 10 minutes.
+
+After applying the patches (same procedure as VC) just recompile.
+Then patch setterm.c and recompile it and move it to /usr/local/bin.
+Use the new startcons supplied, or modify your startcons to add 
+-blank 10 to the first setterm.  Then reboot.
+
+Also note that if you wish to use 50 line mode, you must now #define
+VIDEO_VGA_50_LINE either in console.c, or in linux/config.h.
+In 0.12, it will probably be defined in config, along with constants
+to conditionally assemble setup.s with code for 50 line mode.
+
+As noted, don't forget to change SYSSIZE to 0x3000 in build.c.
+
+
+ISSUES:
+
+You may need to be aware of the following 2 issues.
+
+  1) setterm sets the interval by writing out an escape sequence
+     to the console.  I do not know what all the valid sequences
+     could be, so I selected one linux currently does not use.
+     Namely "^[[Nl".  That is escape, open square, a number N
+     between 0 and 60 and the lowercase letter L.  If some program
+     later outputs this to your screen, the blank time will be changed.
+
+  2) Blank is called by do_timer.  It is possible, that output could
+     be going to the screen just as it is blanked, in which case
+     characters could be lost (at least I hope that is the worst that
+     could happen).  But since blanking usually only occurs during
+     periods of console inactivity, the danger of this is low.
+

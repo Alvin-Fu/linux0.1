@@ -1,0 +1,2341 @@
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create:
+#	Configure
+#	Makefile
+#	Mattrib.1
+#	Mcd.1
+#	Mcopy.1
+#	Mdel.1
+#	Mdir.1
+#	Mformat.1
+#	Mkmanifest.1
+#	Mlabel.1
+#	Mmd.1
+#	Mrd.1
+#	Mread.1
+#	Mren.1
+#	Mtools.1
+#	Mtype.1
+#	Mwrite.1
+#	Readme
+#	Release.notes
+#	buf_read.c
+#	buf_write.c
+#	devices.c
+#	dir_make.c
+#	dir_read.c
+#	dir_write.c
+#	expand.c
+#	fat_free.c
+# This archive created: Mon Aug 26 09:54:26 1991
+export PATH; PATH=/bin:/usr/bin:$PATH
+echo shar: "extracting 'Configure'" '(4630 characters)'
+if test -f 'Configure'
+then
+	echo shar: "will not over-write existing file 'Configure'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Configure'
+XHow to configure Mtools to your system...
+X
+X1) Things you'll need to know.
+X
+X	The full path to the devices you want to use.
+X
+X	The number of tracks, heads, and sectors supported by each device.
+X
+X		5.25" 160k = 40 tracks, 1 head, and 8 sectors
+X		5.25" 180k = 40 tracks, 1 head, and 9 sectors
+X		5.25" 320k = 40 tracks, 2 heads, and 8 sectors
+X		5.25" 360k = 40 tracks, 2 heads, and 9 sectors
+X		5.25" 1.2m = 80 tracks, 2 heads, and 15 sectors
+X		3.5"  720k = 80 tracks, 2 heads, and 9 sectors
+X		3.5" 1.44m = 80 tracks, 2 heads, and 18 sectors
+X
+X	If you choose to use a hard disk partition as one of your devices,
+X	then you may have to change the read/write permissions on that
+X	partition.
+X
+X2) The Makefile and msdos.h files
+X
+X	The following pre-processor variables are used in Mtools.  They
+X	should be set with "-Dvariable" in CFLAGS in the Makefile.
+X
+X		BSD	for systems without System V style strings functions
+X 			and System V style utime().
+X
+X		ISC	default devices for ISC's Unix V.
+X
+X		UNIXPC	default devices for AT&T Unix PC 7300/3B1
+X
+X		SPARC	default devices for SunOS 4.1 on a SPARCstation
+X
+X	There is a variable in msdos.h called SIG_TYPE which should be
+X	configured to the "base" return type of signal();
+X
+X3) The devices "database" in devices.c
+X
+X	WARNING:  The devices.c file, as distributed, has *NO* devices
+X	defined.  You *MUST* select from one of the examples or edit the
+X	devices database yourself.
+X
+X	struct device {
+X		char drive;			/* the drive letter */
+X		char *name;			/* full path to device */
+X		long offset;			/* skip this many bytes */
+X		int fat_bits;			/* FAT encoding scheme */
+X		int mode;			/* any special open() flags */
+X		int (*gioctl) ();		/* gioctl() if needed */
+X		int tracks;			/* tracks */
+X		int heads;			/* heads */
+X		int sectors;			/* sectors */
+X	};
+X
+X	drive	the drive letter (in uppercase) that you want to associate
+X		to this device.
+X
+X	name	full path to the device.  Shell expansion is done on the
+X		name so things like $HOME/vpix/C: will work.
+X
+X	offset	skip over a partition table.  Useful for msdos disk "images"
+X		such as those VP/ix uses.
+X
+X	fat_bits The encoding scheme for the File Allocation Table.  Currently
+X		supports only 12 and 16 bit FATs.
+X
+X	mode	any special open() mode flags (not normally used, except
+X		in the AT&T Unixpc 7300/3b1).
+X
+X	gioctl	any special ioctl() calls required after opening the device
+X		(not normally used, except in the AT&T Unixpc 7300/3b1).
+X
+X	tracks	the number of tracks supported by this device or zero if
+X		this type of sanity checking is not required.  Do NOT use
+X		this field for hard disks or disk "images".  Also used by
+X		gioctl(), if present, as a default starting place.
+X
+X	heads	the number of heads supported by this device or zero if
+X		this type of sanity checking is not required.
+X
+X	sectors	the number of sectors supported by this device or zero if
+X		this type of sanity checking is not required.
+X
+X
+X	If a device supports more than one disk capacity (1.2m and
+X	360k), then you should place the most frequently used capacity
+X	first.  You may get an error message from the device driver when
+X	the disk capacity doesn't match the device, but these can be
+X	safely ignored.
+X
+X4)  Examples devices
+X
+X	for Interactive 386ix 2.0.2 with:
+X		1.2m 5.25" as a: (supports 1.2m, 360k, and 320k)
+X		1.44m 3.5" as b: (supports 1.44m, 720k)
+X		hard disk partition as c:
+X		vpix disk image as d:
+X		user's vpix disk image as e:
+X
+X		{'A', "/dev/rdsk/f0q15dt", 0L, 12, 0, (int (*)()) 0, 80, 2, 15},
+X		{'A', "/dev/rdsk/f0d9dt", 0L, 12, 0, (int (*)()) 0, 40, 2, 9},
+X		{'A', "/dev/rdsk/f0d8dt", 0L, 12, 0, (int (*)()) 0, 40, 2, 8},
+X		{'B', "/dev/rdsk/f13ht", 0L, 12, 0, (int (*)()) 0, 80, 2, 18},
+X		{'B', "/dev/rdsk/f13dt", 0L, 12, 0, (int (*)()) 0, 80, 2, 9},
+X		{'C', "/dev/rdsk/0p1", 0L, 16, 0, (int (*)()) 0, 0, 0, 0},
+X		{'D', "/usr/vpix/defaults/C:", 8704L, 12, 0, (int (*)()) 0, 0, 0, 0},
+X		{'E', "$HOME/vpix/C:", 8704L, 12, 0, (int (*)()) 0, 0, 0, 0},
+X		{'\0', (char *) NULL, 0L, 0, 0, (int (*)()) 0, 0, 0, 0}
+X
+X
+X	for AT&T Unixpc 7300/3b1 with:
+X		360k 5.25" as a: (supports 360k, and 320k, 180k, 160k)
+X		DOS73 disk image as c:
+X
+X		{'A', "/dev/rfp020", 0L, 12, O_NDELAY, init_unixpc, 40, 2, 9},
+X		{'C', "/usr/bin/DOS/dvd000", 0L, 12, 0, (int (*)()) 0, 0, 0, 0}
+X		{'\0', (char *) NULL, 0L, 0, 0, (int (*)()) 0, 0, 0, 0}
+X
+X
+X	for Sun SparcStation with:
+X		1.44m 3.5" as a: (supports 1.44m and 720k)
+X
+X		{'A', "/dev/rfd0c", 0L, 12, 0, (int (*)()) 0, 80, 2, 18},
+X		{'A', "/dev/rfd0c", 0L, 12, 0, (int (*)()) 0, 80, 2, 9},
+X		{'\0', (char *) NULL, 0L, 0, 0, (int (*)()) 0, 0, 0, 0}
+X
+X		Note that the two devices are actually the same physical
+X		device, and that only the number of sectors are
+X		different.
+SHAR_EOF
+if test 4630 -ne "`wc -c < 'Configure'`"
+then
+	echo shar: "error transmitting 'Configure'" '(should have been 4630 characters)'
+fi
+fi
+echo shar: "extracting 'Makefile'" '(6712 characters)'
+if test -f 'Makefile'
+then
+	echo shar: "will not over-write existing file 'Makefile'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Makefile'
+X#
+X#       Makefile for Mtools
+X#
+X# check the Configure file for some examples of device-specific setups
+X# Berkeley flavors of Unix should include -DBSD in the CFLAGS
+X
+XCFLAGS	= -O
+XLDFLAGS	= -s
+XLD	= cc
+XLINT	= lint
+XSHLIB	=
+XSHAR	= shar -a
+XBINDIR	= /usr/local/bin
+XMANSECT	= 1
+XMANDIR	= /usr/man/man$(MANSECT)
+X#
+X# for AT&T Unix PC 7300/3b1 style shared libraries.
+X#SHOBJ	= /lib/crt0s.o /lib/shlib.ifile
+X#LD	= ld
+X
+XPROGS	= mattrib mcd mcopy mdel mdir mformat mlabel mmd mrd mread mren \
+X	mtype mwrite mkmanifest
+X
+XMATTRIB	= mattrib.o buf_read.o buf_write.o devices.o dir_read.o \
+X	dir_write.o expand.o fat_read.o init.o match.o parse.o subdir.o
+XMCD	= mcd.o buf_read.o devices.o dir_read.o expand.o fat_read.o \
+X	init.o is_dir.o match.o parse.o subdir.o
+XMCOPY	= mcopy.o
+XMDEL	= mdel.o buf_read.o buf_write.o devices.o dir_read.o dir_write.o \
+X	expand.o fat_free.o fat_read.o fat_write.o init.o match.o parse.o \
+X	subdir.o 
+XMDIR	= mdir.o buf_read.o devices.o dir_read.o expand.o fat_read.o \
+X	init.o is_dir.o match.o parse.o subdir.o
+XMFORMAT	= mformat.o devices.o dir_write.o expand.o
+XMLABEL	= mlabel.o buf_read.o buf_write.o devices.o dir_read.o \
+X	dir_write.o expand.o fat_read.o init.o 
+XMMD	= mmd.o buf_read.o buf_write.o devices.o dir_make.o dir_read.o \
+X	dir_write.o expand.o fat_read.o fat_write.o init.o match.o parse.o \
+X	subdir.o
+XMRD	= mrd.o buf_read.o buf_write.o devices.o dir_read.o dir_write.o \
+X	expand.o fat_free.o fat_read.o fat_write.o init.o match.o parse.o \
+X	subdir.o
+XMREAD	= mread.o buf_read.o devices.o dir_read.o expand.o fat_read.o \
+X	file_read.o init.o match.o parse.o subdir.o
+XMREN	= mren.o buf_read.o buf_write.o devices.o dir_read.o dir_write.o \
+X	expand.o fat_read.o init.o match.o parse.o subdir.o
+XMTYPE	= mtype.o buf_read.o devices.o dir_read.o expand.o fat_read.o \
+X	file_read.o init.o match.o parse.o subdir.o
+XMWRITE	= mwrite.o buf_read.o buf_write.o devices.o dir_make.o \
+X	dir_read.o dir_write.o expand.o fat_free.o fat_read.o fat_write.o \
+X	file_write.o init.o is_dir.o match.o parse.o subdir.o
+XMKMANIFEST = mkmanifest.o
+X
+Xall:	$(PROGS)
+X
+Xmattrib: $(MATTRIB)
+X	$(LD) $(LDFLAGS) $(MATTRIB) $(SHOBJ) -o mattrib $(SHLIB)
+X
+Xmcd:	$(MCD)
+X	$(LD) $(LDFLAGS) $(MCD) $(SHOBJ) -o mcd $(SHLIB)
+X
+Xmcopy:	$(MCOPY)
+X	$(LD) $(LDFLAGS) $(MCOPY) $(SHOBJ) -o mcopy $(SHLIB)
+X
+Xmdel:	$(MDEL)
+X	$(LD) $(LDFLAGS) $(MDEL) $(SHOBJ) -o mdel $(SHLIB)
+X
+Xmdir:	$(MDIR)
+X	$(LD) $(LDFLAGS) $(MDIR) $(SHOBJ) -o mdir $(SHLIB)
+X
+Xmformat: $(MFORMAT)
+X	$(LD) $(LDFLAGS) $(MFORMAT) $(SHOBJ) -o mformat $(SHLIB)
+X
+Xmlabel:	$(MLABEL)
+X	$(LD) $(LDFLAGS) $(MLABEL) $(SHOBJ) -o mlabel $(SHLIB)
+X
+Xmmd:	$(MMD)
+X	$(LD) $(LDFLAGS) $(MMD) $(SHOBJ) -o mmd $(SHLIB)
+X
+Xmrd:	$(MRD)
+X	$(LD) $(LDFLAGS) $(MRD) $(SHOBJ) -o mrd $(SHLIB)
+X
+Xmread:	$(MREAD)
+X	$(LD) $(LDFLAGS) $(MREAD) $(SHOBJ) -o mread $(SHLIB)
+X
+Xmren:	$(MREN)
+X	$(LD) $(LDFLAGS) $(MREN) $(SHOBJ) -o mren $(SHLIB)
+X
+Xmtype:	$(MTYPE)
+X	$(LD) $(LDFLAGS) $(MTYPE) $(SHOBJ) -o mtype $(SHLIB)
+X
+Xmwrite:	$(MWRITE)
+X	$(LD) $(LDFLAGS) $(MWRITE) $(SHOBJ) -o mwrite $(SHLIB)
+X
+Xmkmanifest:	$(MKMANIFEST)
+X	$(LD) $(LDFLAGS) $(MKMANIFEST) $(SHOBJ) -o mkmanifest $(SHLIB)
+X
+Xinstall:
+X	cp $(PROGS) $(BINDIR)
+X
+Xinstall_man:
+X	cp Mattrib.1 $(MANDIR)/mattrib.$(MANSECT)
+X	cp Mcd.1 $(MANDIR)/mcd.$(MANSECT)
+X	cp Mcopy.1 $(MANDIR)/mcopy.$(MANSECT)
+X	cp Mdel.1 $(MANDIR)/mdel.$(MANSECT)
+X	cp Mdir.1 $(MANDIR)/mdir.$(MANSECT)
+X	cp Mformat.1 $(MANDIR)/mformat.$(MANSECT)
+X	cp Mlabel.1 $(MANDIR)/mlabel.$(MANSECT)
+X	cp Mmd.1 $(MANDIR)/mmd.$(MANSECT)
+X	cp Mrd.1 $(MANDIR)/mrd.$(MANSECT)
+X	cp Mread.1 $(MANDIR)/mread.$(MANSECT)
+X	cp Mren.1 $(MANDIR)/mren.$(MANSECT)
+X	cp Mtools.1 $(MANDIR)/mtools.$(MANSECT)
+X	cp Mtype.1 $(MANDIR)/mtype.$(MANSECT)
+X	cp Mwrite.1 $(MANDIR)/mwrite.$(MANSECT)
+X	cp Mkmanifest.1 $(MANDIR)/mkmanifest.$(MANSECT)
+X
+Xclean:
+X	rm $(PROGS)
+X
+Xlint:
+X	$(LINT) mattrib.c buf_read.c buf_write.c devices.c dir_read.c \
+X	dir_write.c expand.c fat_read.c init.c match.c parse.c subdir.c
+X	$(LINT) mcd.c buf_read.c devices.c dir_read.c expand.c fat_read.c \
+X	init.c is_dir.c match.c parse.c subdir.c
+X	$(LINT) mcopy.c
+X	$(LINT) mdel.c buf_read.c buf_write.c devices.c dir_read.c dir_write.c \
+X	expand.c fat_free.c fat_read.c fat_write.c init.c match.c parse.c \
+X	subdir.c 
+X	$(LINT) mdir.c buf_read.c devices.c dir_read.c expand.c fat_read.c \
+X	init.c is_dir.c match.c parse.c subdir.c
+X	$(LINT) mformat.c devices.c dir_write.c expand.c
+X	$(LINT) mlabel.c buf_read.c buf_write.c devices.c dir_read.c \
+X	dir_write.c expand.c fat_read.c init.c 
+X	$(LINT) mmd.c buf_read.c buf_write.c devices.c dir_make.c dir_read.c \
+X	dir_write.c expand.c fat_read.c fat_write.c init.c match.c parse.c \
+X	subdir.c
+X	$(LINT) mrd.c buf_read.c buf_write.c devices.c dir_read.c dir_write.c \
+X	expand.c fat_free.c fat_read.c fat_write.c init.c match.c parse.c \
+X	subdir.c
+X	$(LINT) mread.c buf_read.c devices.c dir_read.c expand.c fat_read.c \
+X	file_read.c init.c match.c parse.c subdir.c
+X	$(LINT) mren.c buf_read.c buf_write.c devices.c dir_read.c dir_write.c \
+X	expand.c fat_read.c init.c match.c parse.c subdir.c
+X	$(LINT) mtype.c buf_read.c devices.c dir_read.c expand.c fat_read.c \
+X	file_read.c init.c match.c parse.c subdir.c
+X	$(LINT) mwrite.c buf_read.c buf_write.c devices.c dir_make.c \
+X	dir_read.c dir_write.c expand.c fat_free.c fat_read.c fat_write.c \
+X	file_write.c init.c is_dir.c match.c parse.c subdir.c
+X	$(LINT) mkmanifest.c
+X
+Xshar:
+X	$(SHAR) Configure Makefile Mattrib.1 Mcd.1 Mcopy.1 Mdel.1 Mdir.1 \
+X	Mformat.1 Mkmanifest.1 Mlabel.1 Mmd.1 Mrd.1 Mread.1 Mren.1 \
+X	Mtools.1 Mtype.1 Mwrite.1 Readme Release.notes buf_read.c \
+X	buf_write.c devices.c dir_make.c dir_read.c dir_write.c expand.c \
+X	fat_free.c > mtools_sh.1
+X	$(SHAR) fat_read.c fat_write.c file_read.c file_write.c init.c \
+X	is_dir.c match.c mattrib.c mcd.c mcopy.c mdel.c mdir.c mformat.c \
+X	mkmanifest.c mlabel.c mmd.c > mtools_sh.2
+X	$(SHAR) mrd.c mread.c mren.c msdos.h mtype.c mwrite.c parse.c \
+X	patchlevel.h subdir.c > mtools_sh.3
+X	$(SHAR) Mattrib.out Mcd.out Mcopy.out Mdel.out Mdir.out Mformat.out \
+X	Mkmanifest.out Mlabel.out Mmd.out Mrd.out Mread.out Mren.out \
+X	Mtools.out Mtype.out Mwrite.out > mtools_sh.4
+X
+Xbuf_read.o:	msdos.h
+Xbuf_write.o:	msdos.h
+Xdevices.o:	msdos.h
+Xdir_make.o:	msdos.h
+Xdir_read.o:	msdos.h
+Xdir_write.o:	msdos.h
+Xfat_free.o:	msdos.h
+Xfat_read.o:	msdos.h
+Xfat_write.o:	msdos.h
+Xfile_read.o:	msdos.h
+Xfile_write.o:	msdos.h
+Xinit.o:		msdos.h
+Xis_dir.o:	msdos.h
+Xmattrib.o:	msdos.h patchlevel.h
+Xmcd.o:		msdos.h patchlevel.h
+Xmcopy.o:	patchlevel.h
+Xmdel.o:		msdos.h patchlevel.h
+Xmdir.o:		msdos.h patchlevel.h
+Xmformat.o:	msdos.h patchlevel.h
+Xmlabel.o:	msdos.h patchlevel.h
+Xmmd.o:		msdos.h patchlevel.h
+Xmrd.o:		msdos.h patchlevel.h
+Xmread.o:	msdos.h patchlevel.h
+Xmren.o:		msdos.h patchlevel.h
+Xmtype.o:	msdos.h patchlevel.h
+Xmwrite.o:	msdos.h patchlevel.h
+Xparse.o:	msdos.h
+Xsubdir.o:	msdos.h
+SHAR_EOF
+if test 6712 -ne "`wc -c < 'Makefile'`"
+then
+	echo shar: "error transmitting 'Makefile'" '(should have been 6712 characters)'
+fi
+fi
+echo shar: "extracting 'Mattrib.1'" '(1208 characters)'
+if test -f 'Mattrib.1'
+then
+	echo shar: "will not over-write existing file 'Mattrib.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mattrib.1'
+X.TH MATTRIB 1 local
+X.SH NAME
+Xmattrib \- change MSDOS file attribute flags
+X.SH SYNOPSIS
+X.B mattrib
+X[
+X.B -a|+a
+X]
+X[
+X.B -h|+h
+X]
+X[
+X.B -r|+r
+X]
+X[
+X.B -s|+s
+X] msdosfile [ msdosfiles... ]
+X.SH DESCRIPTION
+X.I Mattrib
+Xwill add attribute flags to an MSDOS file (with the '+' operator) or
+Xremove attribute flags (with the '-' operator).
+X.PP
+X.I Mattrib
+Xwill allow the following command line options:
+X.TP
+X.B a
+XArchive bit.  Used by some backup programs to indicate a new file.
+X.TP
+X.B r
+XRead-only bit.  Used to indicate a read-only file.  Files with this bit
+Xset cannot be erased by DEL.  However, 
+X.I
+Xmdel
+Xis more cunning.
+X.TP
+X.B s
+XSystem bit.  Used by MSDOS to indicate a operating system file.
+X.TP
+X.B h
+XHidden bit.  Used to make files hidden from DIR.  However,
+X.I
+Xmdir
+Xis more cunning.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1)
+X.SH BUGS
+XMost versions of ATTRIB don't allow this many options.
+SHAR_EOF
+if test 1208 -ne "`wc -c < 'Mattrib.1'`"
+then
+	echo shar: "error transmitting 'Mattrib.1'" '(should have been 1208 characters)'
+fi
+fi
+echo shar: "extracting 'Mcd.1'" '(893 characters)'
+if test -f 'Mcd.1'
+then
+	echo shar: "will not over-write existing file 'Mcd.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mcd.1'
+X.TH MCD 1 local
+X.SH NAME
+Xmcd \- change MSDOS directory
+X.SH SYNOPSIS
+X.B mcd
+X[ msdosdirectory ]
+X.SH DESCRIPTION
+XWithout arguments,
+X.I mcd
+Xwill report the current device and working directory.  Otherwise,
+X.I mcd
+Xchanges the current device and current working directory relative to an
+XMSDOS filesystem.
+X.PP
+XThe environmental variable MCWD may be used to locate the file where the
+Xdevice and current working directory information is stored.  The default
+Xis '$HOME/.mcwd'.  Information in this file is ignored if the file is
+Xmore than 6 hours old.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xdirectory name to be enclosed in quotes to protect it from the shell.
+X.SH SEE ALSO
+Xmdir(1)
+X.SH BUGS
+XMSDOS doesn't use CD to change to another device.
+X.PP
+XIt may be wise to remove old .mcwd files at logout.
+SHAR_EOF
+if test 893 -ne "`wc -c < 'Mcd.1'`"
+then
+	echo shar: "error transmitting 'Mcd.1'" '(should have been 893 characters)'
+fi
+fi
+echo shar: "extracting 'Mcopy.1'" '(1658 characters)'
+if test -f 'Mcopy.1'
+then
+	echo shar: "will not over-write existing file 'Mcopy.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mcopy.1'
+X.TH MCOPY 1 local
+X.SH NAME
+Xmcopy \- copy MSDOS files to/from Unix
+X.SH SYNOPSIS
+X.B mcopy
+X[
+X.B -tnvm
+X] sourcefile targetfile
+X.PP
+X.B mcopy
+X[
+X.B -tnvm
+X] sourcefile [ sourcefiles... ] targetdirectory
+X.SH DESCRIPTION
+X.I Mcopy
+Xcopies the specified file to the named file, or copies multiple files to
+Xthe named directory.  The source and target can be either MSDOS or Unix
+Xfiles.
+X.PP
+XThe use of a drive letter designation on the MSDOS files, 'a:' for
+Xexample, determines the direction of the transfer.  A missing drive
+Xdesignation implies a Unix file whose path starts in the current
+Xdirectory
+X.PP
+X.I Mcopy
+Xwill allow the following command line options:
+X.TP
+X.B t
+XText file transfer.
+X.I Mcopy
+Xwill translate incoming carriage return/line feeds to line feeds.
+X.TP
+X.B n
+XNo warning.
+X.I Mcopy
+Xwill not warn the user when overwriting an existing file.
+X.TP
+X.B v
+XVerbose mode.
+X.TP
+X.B m
+XPreserve the file modification time.
+X.PP
+XIf the target file already exists, and the
+X.I -n
+Xoption is not in effect,
+X.I mcopy
+Xasks whether or not to overwrite the file.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1), mread(1), mwrite(1)
+X.SH BUGS
+XUnlike MSDOS, the destination directory may
+X.B not
+Xbe omitted.
+X.PP
+XThe '+' operator (append) from MSDOS is not supported.
+X.PP
+XNo other
+X.I Mtools
+Xcommand
+X.B requires
+Xthe use of a drive letter designation on MSDOS files.
+SHAR_EOF
+if test 1658 -ne "`wc -c < 'Mcopy.1'`"
+then
+	echo shar: "error transmitting 'Mcopy.1'" '(should have been 1658 characters)'
+fi
+fi
+echo shar: "extracting 'Mdel.1'" '(829 characters)'
+if test -f 'Mdel.1'
+then
+	echo shar: "will not over-write existing file 'Mdel.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mdel.1'
+X.TH MDEL 1 local
+X.SH NAME
+Xmdel \- delete an MSDOS file
+X.SH SYNOPSIS
+X.B mdel
+X[
+X.B -v
+X] msdosfile [ msdosfiles...  ]
+X.SH DESCRIPTION
+X.I Mdel
+Xdeletes a file on an MSDOS filesystem.
+X.PP
+X.I Mdel
+Xwill allow the following command line option:
+X.TP
+X.B v
+XVerbose mode.  Echo the filenames as they are processed.
+X.PP
+X.I Mdel
+Xwill ask for verification prior to removing a read\-only file.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1)
+X.SH BUGS
+XAllows multiple arguments, which does not follow the MSDOS convention.
+SHAR_EOF
+if test 829 -ne "`wc -c < 'Mdel.1'`"
+then
+	echo shar: "error transmitting 'Mdel.1'" '(should have been 829 characters)'
+fi
+fi
+echo shar: "extracting 'Mdir.1'" '(967 characters)'
+if test -f 'Mdir.1'
+then
+	echo shar: "will not over-write existing file 'Mdir.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mdir.1'
+X.TH MDIR 1 local
+X.SH NAME
+Xmdir \- display an MSDOS directory
+X.SH SYNOPSIS
+X.B mdir
+X[
+X.B -w
+X] msdosdirectory
+X.PP
+X.B mdir
+X[
+X.B -w
+X] msdosfile [ msdosfiles...  ] 
+X.SH DESCRIPTION
+X.I Mdir
+Xdisplays the contents of an MSDOS directory.
+X.PP
+X.I Mdir
+Xwill allow the following command line option:
+X.TP
+X.B w
+XWide output.  This option will print the filenames across the page
+Xwithout displaying the file size or creation date.
+X.PP
+XAn error occurs if a component of the path is not a directory.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1)
+X.SH BUGS
+XAllows multiple arguments, which does not follow the MSDOS convention.
+X.PP
+XThere is no /P (pause) option.
+SHAR_EOF
+if test 967 -ne "`wc -c < 'Mdir.1'`"
+then
+	echo shar: "error transmitting 'Mdir.1'" '(should have been 967 characters)'
+fi
+fi
+echo shar: "extracting 'Mformat.1'" '(865 characters)'
+if test -f 'Mformat.1'
+then
+	echo shar: "will not over-write existing file 'Mformat.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mformat.1'
+X.TH MFORMAT 1 local
+X.SH NAME
+Xmformat \- add an MSDOS filesystem to a low-level formatted diskette.
+X.SH SYNOPSIS
+X.B mformat
+X[
+X.B -t
+Xtracks ] [
+X.B -h
+Xheads ] [
+X.B -s
+Xsectors ] [
+X.B -l
+Xvolume label ] drive:
+X.SH DESCRIPTION
+X.I Mformat
+Xadds a minimal MSDOS filesystem (boot sector, FAT, and root directory) to
+Xa diskette that has already been formatted by a Unix low-level format.
+X.PP
+XThe follow options are supported:
+X.TP
+X.B t
+XThe number of tracks (not cylinders).
+X.TP
+X.B h
+XThe number of heads (sides).
+X.TP
+X.B s
+XThe number of sectors per track.
+X.TP
+X.B l
+XAn optional volume label.
+X.PP
+XTo format a diskette at a density other than the default, you must supply
+X(at least) those command line parameters that are different from the
+Xdefault.
+X.SH SEE ALSO
+Xmlabel(1)
+X.SH BUGS
+XRequires a low-level format utility from Unix.
+X.PP
+XDoesn't detect (or record) bad block information.
+SHAR_EOF
+if test 865 -ne "`wc -c < 'Mformat.1'`"
+then
+	echo shar: "error transmitting 'Mformat.1'" '(should have been 865 characters)'
+fi
+fi
+echo shar: "extracting 'Mkmanifest.1'" '(1570 characters)'
+if test -f 'Mkmanifest.1'
+then
+	echo shar: "will not over-write existing file 'Mkmanifest.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mkmanifest.1'
+X.TH MKMANIFEST 1 local
+X.SH NAME
+Xmkmanifest \- create a shell script to restore Unix filenames
+X.SH SYNOPSIS
+X.B mkmanifest
+X[ files ]
+X.SH DESCRIPTION
+X.I Mkmanifest
+Xcreates a shell script that will aid in the restoration of Unix filenames
+Xthat got clobbered by the MSDOS filename restrictions.  MSDOS filenames
+Xare restricted to 8 character names, 3 character extensions, upper case
+Xonly, no device names, and no illegal characters.
+X.PP
+XThe mkmanifest program is compatible with the methods used in
+X.I pcomm, arc,
+Xand
+X.I mtools
+Xto change perfectly good Unix filenames to fit the MSDOS restrictions.
+X.SH EXAMPLE
+XI want to copy the following Unix files to a MSDOS diskette (using the
+X.I mcopy
+Xcommand).
+X.PP
+X.in +0.5i
+X.nf
+Xvery_long_name
+X2.many.dots
+Xillegal:
+Xgood.c
+Xprn.dev
+XCapital
+X.fi
+X.in
+X.PP
+X.I Mcopy
+Xwill convert the names to:
+X.PP
+X.in +0.5i
+X.nf
+Xvery_lon
+X2xmany.dot
+Xillegalx
+Xgood.c
+Xxprn.dev
+Xcapital
+X.fi
+X.in
+X.PP
+XThe command:
+X.PP
+Xmkmanifest very_long_name 2.many.dots illegal: good.c prn.dev Capital >
+Xmanifest
+X.PP
+Xwould produce the following:
+X.PP
+X.in +0.5i
+X.nf
+Xmv very_lon very_long_name
+Xmv 2xmany.dot 2.many.dots
+Xmv illegalx illegal:
+Xmv xprn.dev prn.dev
+Xmv capital Capital
+X.fi
+X.in
+X.PP
+XNotice that "good.c" did not require any conversion, so it did not appear
+Xin the output.
+X.PP
+XSuppose I've copied these files from the diskette to another Unix
+Xsystem, and I now want the files back to their original names.  If the
+Xfile "manifest" (the output captured above) was sent along with those
+Xfiles, it could be used to convert the filenames.
+X.SH SEE ALSO
+Xarc(1), pcomm(1), mtools(1)
+SHAR_EOF
+if test 1570 -ne "`wc -c < 'Mkmanifest.1'`"
+then
+	echo shar: "error transmitting 'Mkmanifest.1'" '(should have been 1570 characters)'
+fi
+fi
+echo shar: "extracting 'Mlabel.1'" '(649 characters)'
+if test -f 'Mlabel.1'
+then
+	echo shar: "will not over-write existing file 'Mlabel.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mlabel.1'
+X.TH MLABEL 1 local
+X.SH NAME
+Xmlabel \- make an MSDOS volume label
+X.SH SYNOPSIS
+X.B mlabel
+X[
+X.B -v
+X] drive:
+X.SH DESCRIPTION
+X.I Mlabel
+Xdisplays the current volume label, if present, and prompts the user
+Xfor a new volume label.  To delete an existing volume label, press
+Xreturn at the prompt.
+X.PP
+X.I Mlabel
+Xwill allow the following command line option:
+X.TP
+X.B v
+XVerbose mode.  Display the new volume label if the label supplied is
+Xinvalid.
+X.PP
+XReasonable care is taken to create a valid MSDOS volume label.  If an
+Xinvalid label is specified,
+X.I mlabel
+Xwill change the label (and display the new label if the verbose mode is
+Xset).
+X.SH SEE ALSO
+Xmformat(1)
+SHAR_EOF
+if test 649 -ne "`wc -c < 'Mlabel.1'`"
+then
+	echo shar: "error transmitting 'Mlabel.1'" '(should have been 649 characters)'
+fi
+fi
+echo shar: "extracting 'Mmd.1'" '(1048 characters)'
+if test -f 'Mmd.1'
+then
+	echo shar: "will not over-write existing file 'Mmd.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mmd.1'
+X.TH MMD 1 local
+X.SH NAME
+Xmmd \- make an MSDOS subdirectory
+X.SH SYNOPSIS
+X.B mmd
+X[
+X.B -v
+X] msdosdirectory [ msdosdirectories... ]
+X.SH DESCRIPTION
+X.I Mmd
+Xmakes a new directory on an MSDOS filesystem.
+X.PP
+X.I Mmd
+Xwill allow the following command line option:
+X.TP
+X.B v
+XVerbose mode.  Display the new directory name if the name supplied is
+Xinvalid.
+X.PP
+XReasonable care is taken to create a valid MSDOS directory name.  If an
+Xinvalid name is specified,
+X.I mmd
+Xwill change the name (and display the new name if the verbose mode is
+Xset).
+X.PP
+XAn error occurs if the directory already exists.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xdirectory name to be enclosed in quotes to protect it from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1), mrd(1)
+X.SH BUGS
+XAllows multiple arguments, which does not follow the MSDOS convention.
+SHAR_EOF
+if test 1048 -ne "`wc -c < 'Mmd.1'`"
+then
+	echo shar: "error transmitting 'Mmd.1'" '(should have been 1048 characters)'
+fi
+fi
+echo shar: "extracting 'Mrd.1'" '(707 characters)'
+if test -f 'Mrd.1'
+then
+	echo shar: "will not over-write existing file 'Mrd.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mrd.1'
+X.TH MRD 1 local
+X.SH NAME
+Xmrd \- remove an MSDOS subdirectory
+X.SH SYNOPSIS
+X.B mrd
+Xmsdosdirectory [ msdosdirectories... ]
+X.SH DESCRIPTION
+X.I Mrd
+Xremoves a directory from an MSDOS filesystem.
+X.PP
+XAn error occurs if the directory is not empty.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xdirectory name to be enclosed in quotes to protect it from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1), mmd(1)
+X.SH BUGS
+XAllows multiple arguments, which does not follow the MSDOS convention.
+SHAR_EOF
+if test 707 -ne "`wc -c < 'Mrd.1'`"
+then
+	echo shar: "error transmitting 'Mrd.1'" '(should have been 707 characters)'
+fi
+fi
+echo shar: "extracting 'Mread.1'" '(1293 characters)'
+if test -f 'Mread.1'
+then
+	echo shar: "will not over-write existing file 'Mread.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mread.1'
+X.TH MREAD 1 local
+X.SH NAME
+Xmread \- low level read (copy) an MSDOS file to Unix
+X.SH SYNOPSIS
+X.B mread
+X[
+X.B -tnm
+X] msdosfile unixfile
+X.PP
+X.B mread
+X[
+X.B -tnm
+X] msdosfile [ msdosfiles... ] unixdirectory
+X.SH DESCRIPTION
+XIn the first form,
+X.I mread
+Xcopies the specified MSDOS file to the named Unix file.  The second form
+Xof the command copies multiple MSDOS files to the named Unix directory.
+X.PP
+X.I Mread
+Xwill allow the following command line options:
+X.TP
+X.B t
+XText file transfer.
+X.I Mread
+Xwill translate incoming carriage return/line feeds to line feeds.
+X.TP
+X.B n
+XNo warning.
+X.I Mread
+Xwill not warn the user when overwriting an existing file.
+X.TP
+X.B m
+XPreserve the file modification times.
+X.PP
+XIf the target file already exists, and the
+X.I -n
+Xoption is not in effect,
+X.I mread
+Xasks whether or not to overwrite the file.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1), mcopy(1), mtype(1), mwrite(1)
+X.SH BUGS
+XUnlike MSDOS, the destination directory may
+X.B not
+Xbe omitted.
+SHAR_EOF
+if test 1293 -ne "`wc -c < 'Mread.1'`"
+then
+	echo shar: "error transmitting 'Mread.1'" '(should have been 1293 characters)'
+fi
+fi
+echo shar: "extracting 'Mren.1'" '(1186 characters)'
+if test -f 'Mren.1'
+then
+	echo shar: "will not over-write existing file 'Mren.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mren.1'
+X.TH MREN 1 local
+X.SH NAME
+Xmren \- rename an existing MSDOS file
+X.SH SYNOPSIS
+X.B mren
+X[
+X.B -v
+X] sourcefile targetfile
+X.SH DESCRIPTION
+X.I Mren
+Xrenames an existing file on an MSDOS filesystem.
+X.PP
+X.I Mren
+Xwill allow the following command line option:
+X.TP
+X.B v
+XVerbose mode.  Display the new filename if the name supplied is
+Xinvalid.
+X.PP
+XReasonable care is taken to create a valid MSDOS filename.  If an invalid
+XMSDOS target name is specified,
+X.I mren
+Xwill change the name (and prompt the user to accept or reject the new name
+Xif the verbose mode is set).
+X.PP
+XThe path component of the target filename (if supplied) is ignored.  In
+Xother words, you may not use
+X.I mren
+Xto move a file from one subdirectory to another.
+X.PP 
+X.I Mren
+Xmay be used to rename directories.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1)
+X.SH BUGS
+XMSDOS can't use REN to rename directories.
+SHAR_EOF
+if test 1186 -ne "`wc -c < 'Mren.1'`"
+then
+	echo shar: "error transmitting 'Mren.1'" '(should have been 1186 characters)'
+fi
+fi
+echo shar: "extracting 'Mtools.1'" '(2116 characters)'
+if test -f 'Mtools.1'
+then
+	echo shar: "will not over-write existing file 'Mtools.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mtools.1'
+X.TH MTOOLS 1 local
+X.SH NAME
+XMtools \- a collection of tools for manipulating MSDOS files
+X.SH SYNOPSIS
+X.nf
+X\fBmattrib\fR \- change MSDOS file attribute flags
+X\fBmcd\fR \- change MSDOS directory
+X\fBmcopy\fR \- copy MSDOS files to/from Unix
+X\fBmdel\fR \- delete an MSDOS file
+X\fBmdir\fR \- display an MSDOS directory
+X\fBmformat\fR \- add an MSDOS filesystem to a low-level formatted diskette
+X\fBmlabel\fR \- make an MSDOS volume label
+X\fBmmd\fR \- make an MSDOS subdirectory
+X\fBmrd\fR \- remove an MSDOS subdirectory
+X\fBmread\fR \- low level read (copy) an MSDOS file to Unix
+X\fBmren\fR \- rename an existing MSDOS file
+X\fBmtype\fR \- display contents of an MSDOS file
+X\fBmwrite\fR \- low level write (copy) a Unix file to MSDOS
+X.fi
+X.SH DESCRIPTION
+XMtools is a public domain collection of programs to allow Unix systems
+Xto read, write, and manipulate files on an MSDOS filesystem (typically a
+Xdiskette).  Each program attempts to emulate the MSDOS equivalent
+Xcommand as closely as practical.
+X.PP
+XMSDOS filenames are optionally composed of a drive letter followed by a
+Xcolon, a subdirectory, and a filename.  Subdirectory names can use either
+Xthe '/' or '\e\' separator.  The use of the '\e\' separator or wildcards
+Xwill require the names to be enclosed in quotes to protect them from the
+Xshell.
+X.PP
+XThe regular expression "pattern matching" routines follow the Unix-style
+Xrules.  For example, '*' matches all MSDOS files in lieu of '*.*'.  The
+Xarchive, hidden, read-only and system attribute bits are ignored during
+Xpattern matching.
+X.PP
+XAll options use the '-' (minus) flag, not '/' as you'd expect in MSDOS.
+X.PP
+XThe
+X.I mcd
+Xcommand is used to establish the device and the current working
+Xdirectory (relative to the MSDOS filesystem), otherwise the default is
+Xassumed to be A:/.
+X.SH SEE ALSO
+Xmattrib(1), mcd(1), mdel(1), mformat(1), mrd(1), mren(1), mtype(1),
+Xmcopy(1), mdir(1), mlabel(1), mmd(1), mread(1), mwrite(1)
+X.SH BUGS
+XAn unfortunate side effect of not guessing the proper device (when
+Xmultiple disk capacities are supported) is an occasional error message
+Xfrom the device driver.  These can be safely ignored.
+SHAR_EOF
+if test 2116 -ne "`wc -c < 'Mtools.1'`"
+then
+	echo shar: "error transmitting 'Mtools.1'" '(should have been 2116 characters)'
+fi
+fi
+echo shar: "extracting 'Mtype.1'" '(903 characters)'
+if test -f 'Mtype.1'
+then
+	echo shar: "will not over-write existing file 'Mtype.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mtype.1'
+X.TH MTYPE 1 local
+X.SH NAME
+Xmtype \- display contents of an MSDOS file
+X.SH SYNOPSIS
+X.B mtype
+X[
+X.B -ts
+X] msdosfile [ msdosfiles... ]
+X.SH DESCRIPTION
+X.I Mtype
+Xdisplays the specified MSDOS file on the screen.
+X.PP
+X.I Mtype
+Xwill allow the following command line options:
+X.TP
+X.B t
+XText file viewing.
+X.I Mtype
+Xwill translate incoming carriage return/line feeds to line feeds.
+X.TP
+X.B s
+XStrip high bit.
+X.I Mtype
+Xwill strip the high bit from the data.
+X.PP
+XMSDOS subdirectory names are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1), mread(1)
+X.SH BUGS
+XAllows multiple arguments, which does not follow the MSDOS convention.
+SHAR_EOF
+if test 903 -ne "`wc -c < 'Mtype.1'`"
+then
+	echo shar: "error transmitting 'Mtype.1'" '(should have been 903 characters)'
+fi
+fi
+echo shar: "extracting 'Mwrite.1'" '(1570 characters)'
+if test -f 'Mwrite.1'
+then
+	echo shar: "will not over-write existing file 'Mwrite.1'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mwrite.1'
+X.TH MWRITE 1 local
+X.SH NAME
+Xmwrite \- low level write (copy) a Unix file to MSDOS
+X.SH SYNOPSIS
+X.B mwrite
+X[
+X.B -tnvm
+X] unixfile msdosfile
+X.PP
+X.B mwrite
+X[
+X.B -tnvm
+X] unixfile [ unixfiles... ] msdosdirectory
+X.SH DESCRIPTION
+XIn the first form,
+X.I mwrite
+Xcopies the specified Unix file to the named MSDOS file.  The second form
+Xof the command copies multiple Unix files to the named MSDOS directory.
+X.PP
+X.I Mwrite
+Xwill allow the following command line options:
+X.TP
+X.B t
+XText file transfer.
+X.I Mwrite
+Xwill translate incoming line feeds to carriage return/line feeds.
+X.TP
+X.B n
+XNo warning.
+X.I Mwrite
+Xwill not warn the user when overwriting an existing file.
+X.TP
+X.B v
+XVerbose mode.  Display the new filename if the Unix filename requires
+Xconversion.
+X.TP
+X.B m
+XPreserve the file modification times.
+X.PP
+XIf the target file already exists, and the
+X.I -n
+Xoption is not in effect,
+X.I mwrite
+Xasks whether or not to overwrite the file.
+X.PP
+XReasonable care is taken to create a valid MSDOS filename.  If an
+Xinvalid name is specified,
+X.I mwrite
+Xwill change the name (and display the new name if the verbose mode is
+Xset).
+X.PP
+XMSDOS subdirectory names are are supported with either the '/' or '\e\'
+Xseparator.  The use of the '\e\' separator or wildcards will require the
+Xnames to be enclosed in quotes to protect them from the shell.
+X.PP
+XThe
+X.I mcd
+Xcommand may be used to establish the device and the current working
+Xdirectory (relative to MSDOS), otherwise the default is A:/.
+X.SH SEE ALSO
+Xmcd(1), mcopy(1), mread(1)
+X.SH BUGS
+XUnlike MSDOS, the destination directory may
+X.B not
+Xbe omitted.
+SHAR_EOF
+if test 1570 -ne "`wc -c < 'Mwrite.1'`"
+then
+	echo shar: "error transmitting 'Mwrite.1'" '(should have been 1570 characters)'
+fi
+fi
+echo shar: "extracting 'Readme'" '(2533 characters)'
+if test -f 'Readme'
+then
+	echo shar: "will not over-write existing file 'Readme'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Readme'
+X				MTOOLS
+X			      version 2.0
+X
+XMtools is a public domain collection of programs to allow Unix systems
+Xto read, write, and manipulate files on an MSDOS filesystem (typically a
+Xdiskette).
+X
+XThe following MSDOS commands are emulated:
+X
+XMtool 		MSDOS
+Xname		equivalent	Description
+X-----		----		-----------
+Xmattrib		ATTRIB		change MSDOS file attribute flags
+Xmcd		CD		change MSDOS directory
+Xmcopy		COPY		copy MSDOS files to/from Unix
+Xmdel		DEL/ERASE	delete an MSDOS file
+Xmdir		DIR		display an MSDOS directory
+Xmformat		FORMAT		add MSDOS filesystem to a low-level format
+Xmlabel		LABEL		make an MSDOS volume label.
+Xmmd		MD/MKDIR	make an MSDOS subdirectory
+Xmrd		RD/RMDIR	remove an MSDOS subdirectory
+Xmread		COPY		low level read (copy) an MSDOS file to Unix
+Xmren		REN/RENAME	rename an existing MSDOS file
+Xmtype		TYPE		display contents of an MSDOS file
+Xmwrite		COPY		low level write (copy) a Unix file to MSDOS
+X
+XYou should be able to just close your eyes and pretend you're on an MSDOS
+Xsystem.  Everything should work the same... except for the added 'm' at
+Xthe beginning of each command.
+X
+XI really wanted to avoid the use of a 'text' mode and a 'data' mode when
+Xtransferring files, but I couldn't find a better way.  It gets rather
+Xconfusing and it's quite possible to mess up a file if you apply the
+Xtext mode when it is not appropriate (ie:  to a COM or EXE file).
+X
+XThe pattern matching routine more closely resembles Unix than MSDOS.
+XFor example, "*" matches all MSDOS files in lieu of "*.*".
+X
+XThe use of wildcards (or the '\' separator) will require the names to be
+Xenclosed in quotes to protect them from the shell.  For example:
+X
+X	RIGHT:	mcopy "a:*.c" .
+X
+X	will copy all files on the A: disk with the extension .C to the
+X	current Unix directory.
+X
+X	WRONG:	mcopy a:*.c .
+X
+X	will cause the shell to expand a:*.c in the current Unix directory
+X	(which is probably not what you wanted) then copy that list of
+X	files (if there were any) from A: to the current Unix directory.
+X
+X	RIGHT:	mcopy *.c a:
+X
+X	will copy all files with the extension .c in the current Unix
+X	directory to the A: drive.  (This time you *want* the shell
+X	the expand the *.c).
+X
+XThe manuals are very terse...  it's assumed that the reader is already
+Xfamiliar with MSDOS.
+X
+XMcopy is really a front-end to the low level Mread and Mwrite commands.
+X
+XEmmet P. Gray				US Army, HQ III Corps & Fort Hood
+X...!uunet!uiucuxc!fthood!egray		Attn: AFZF-DE-ENV
+Xfthood!egray@uxc.cso.uiuc.edu		Directorate of Engineering & Housing
+X					Environmental Management Office
+X					Fort Hood, TX 76544-5057
+SHAR_EOF
+if test 2533 -ne "`wc -c < 'Readme'`"
+then
+	echo shar: "error transmitting 'Readme'" '(should have been 2533 characters)'
+fi
+fi
+echo shar: "extracting 'Release.notes'" '(1008 characters)'
+if test -f 'Release.notes'
+then
+	echo shar: "will not over-write existing file 'Release.notes'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Release.notes'
+XNew in the v2.0 release....
+X
+X	1) Support for multiple devices.  Mtools now supports:
+X		multiple floppy disks (A:, B:, etc)
+X		DOS partitions on a hard disk
+X		DOS "images" such as those VP/ix uses.
+X
+X	2) Wildcards are supported anywhere in a pathname (not just
+X	in the "filename" part as before)
+X
+X	3) Reads and writes to slow devices are now "cylinder buffered"
+X	when appropriate.
+X
+X	4) Versions of CD, FORMAT, LABEL, and ATTRIB have been added.
+X
+X	5) A Mtools.1 manual page has beed added for an overview of Mtools.
+X
+X	6) The mkmanifest command has been added.  Although not an 'mtool'
+X	command, it makes life easier when fixing up Unix filenames that
+X	get clobbered by MSDOS file name restrictions.
+X
+X	7) The mkdfs program of the "fast-mtools" release for the Sun
+X	SparcStation can be replaced with mformat.
+X
+X	8) The Configure file has been included to help those who must add
+X	devices to the devices.c file.
+X
+X	Many thanks to Viktor Dukhovni (viktor@math.princeton.edu) for
+X	many of the ideas in the new release.
+SHAR_EOF
+if test 1008 -ne "`wc -c < 'Release.notes'`"
+then
+	echo shar: "error transmitting 'Release.notes'" '(should have been 1008 characters)'
+fi
+fi
+echo shar: "extracting 'buf_read.c'" '(1759 characters)'
+if test -f 'buf_read.c'
+then
+	echo shar: "will not over-write existing file 'buf_read.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'buf_read.c'
+X/*
+X * Do full cylinder buffered reads from slow devices.  Uses a simple
+X * buffered read/delayed write algorithm.
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xunsigned char *disk_buf;		/* disk read/write buffer */
+Xint disk_size;				/* size of read/write buffer */
+Xlong disk_current;			/* first sector in buffer */
+Xint disk_dirty;				/* is the buffer dirty? */
+X
+Xextern int fd;
+Xextern long disk_offset;
+X
+Xvoid
+Xdisk_read(start, buf, len)
+Xlong start;
+Xunsigned char *buf;
+Xint len;
+X{
+X	register long i;
+X	int length;
+X	unsigned char *buf_ptr, *disk_ptr;
+X	char *memcpy();
+X	long where, tail, lseek();
+X	void perror(), exit(), disk_flush();
+X
+X					/* don't use cache? */
+X	if (disk_size == 1) {
+X		where = (start * MSECTOR_SIZE) + disk_offset;
+X		if (lseek(fd, where, 0) < 0) {
+X			perror("disk_read: lseek");
+X			exit(1);
+X		}
+X					/* read it! */
+X		if (read(fd, (char *) buf, (unsigned int) len) != len) {
+X			perror("disk_read: read");
+X			exit(1);
+X		}
+X		return;
+X	}
+X
+X	tail = start + (len / MSECTOR_SIZE) - 1;
+X	for (i = start; i <= tail; i++) {
+X					/* a "cache" miss */
+X		if (i < disk_current || i >= disk_current + disk_size) {
+X
+X			if (disk_dirty)
+X				disk_flush();
+X
+X			disk_current = (i / disk_size) * disk_size;
+X			where = (disk_current * MSECTOR_SIZE) + disk_offset;
+X			length = disk_size * MSECTOR_SIZE;
+X
+X					/* move to next location */
+X			if (lseek(fd, where, 0) < 0) {
+X				perror("disk_read: lseek");
+X				exit(1);
+X			}
+X					/* read it! */
+X			if (read(fd, (char *) disk_buf, (unsigned int) length) != length) {
+X				perror("disk_read: read");
+X				exit(1);
+X			}
+X		}
+X					/* a cache hit... */
+X		buf_ptr = buf + ((i - start) * MSECTOR_SIZE);
+X		disk_ptr = disk_buf + ((i - disk_current) * MSECTOR_SIZE);
+X		memcpy((char *) buf_ptr, (char *) disk_ptr, MSECTOR_SIZE);
+X	}
+X	return;
+X}
+SHAR_EOF
+if test 1759 -ne "`wc -c < 'buf_read.c'`"
+then
+	echo shar: "error transmitting 'buf_read.c'" '(should have been 1759 characters)'
+fi
+fi
+echo shar: "extracting 'buf_write.c'" '(3057 characters)'
+if test -f 'buf_write.c'
+then
+	echo shar: "will not over-write existing file 'buf_write.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'buf_write.c'
+X/*
+X * Do full cylinder buffered writes to slow devices.  Uses a simple
+X * buffered read/delayed write algorithm
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xextern int fd, disk_size, disk_dirty, dir_start, dir_len;
+Xextern int clus_size;
+Xextern long disk_offset, disk_current;
+Xextern unsigned char *disk_buf;
+Xstatic int blank_cyl();
+X
+Xvoid
+Xdisk_write(start, buf, len)
+Xlong start;
+Xunsigned char *buf;
+Xint len;
+X{
+X	register long i;
+X	int length;
+X	unsigned char *buf_ptr, *disk_ptr;
+X	char *memcpy();
+X	void perror(), exit(), disk_flush();
+X	long where, tail, lseek();
+X
+X					/* don't use cache? */
+X	if (disk_size == 1) {
+X		where = (start * MSECTOR_SIZE) + disk_offset;
+X		if (lseek(fd, where, 0) < 0) {
+X			perror("disk_write: lseek");
+X			exit(1);
+X		}
+X					/* write it! */
+X		if (write(fd, (char *) buf, (unsigned int) len) != len) {
+X			perror("disk_write: write");
+X			exit(1);
+X		}
+X		return;
+X	}
+X
+X	tail = start + (len / MSECTOR_SIZE) - 1;
+X	for (i = start; i <= tail; i++) {
+X					/* a cache miss... */
+X		if (i < disk_current || i >= disk_current + disk_size) {
+X
+X			if (disk_dirty)
+X				disk_flush();
+X
+X			/*
+X			 * If there is something on the new cylinder that
+X			 * you want to keep, you'll have to read it first
+X			 * before writing.
+X			 */
+X			if (blank_cyl(i))
+X				disk_current = (i / disk_size) * disk_size;
+X			else {
+X				disk_current = (i / disk_size) * disk_size;
+X				where = (disk_current * MSECTOR_SIZE) + disk_offset;
+X				length = disk_size * MSECTOR_SIZE;
+X
+X					/* move to next location */
+X				if (lseek(fd, where, 0) < 0) {
+X					perror("disk_write: lseek");
+X					exit(1);
+X				}
+X					/* read it! */
+X				if (read(fd, (char *) disk_buf, (unsigned int) length) != length) {
+X					perror("disk_write: read");
+X					exit(1);
+X				}
+X			}
+X		}
+X					/* a cache hit ... */
+X		buf_ptr = buf + ((i - start) * MSECTOR_SIZE);
+X		disk_ptr = disk_buf + ((i - disk_current) * MSECTOR_SIZE);
+X		memcpy((char *) disk_ptr, (char *) buf_ptr, MSECTOR_SIZE);
+X		disk_dirty = 1;
+X	}
+X	return;
+X}
+X
+X/*
+X * Flush a dirty buffer to disk.  Resets disk_dirty to zero.
+X * All errors are fatal.
+X */
+X
+Xvoid
+Xdisk_flush()
+X{
+X	int len;
+X	long where, lseek();
+X	void perror(), exit();
+X
+X	if (fd < 0 || disk_current < 0L || !disk_dirty)
+X		return;
+X
+X	where = (disk_current * MSECTOR_SIZE) + disk_offset;
+X	if (lseek(fd, where, 0) < 0) {
+X		perror("disk_flush: lseek");
+X		exit(1);
+X	}
+X					/* write it! */
+X	len = disk_size * MSECTOR_SIZE;
+X	if (write(fd, (char *) disk_buf, (unsigned int) len) != len) {
+X		perror("disk_flush: write");
+X		exit(1);
+X	}
+X	disk_dirty = 0;
+X	return;
+X}
+X
+X/*
+X * Determine if the cylinder has some useful information on it.  Returns a 1
+X * if it is blank.
+X */
+X
+Xstatic int
+Xblank_cyl(num)
+Xlong num;
+X{
+X	register unsigned int i;
+X	unsigned int start, end, fat_decode();
+X	long sector;
+X
+X	sector = (num / disk_size) * disk_size;
+X	if (!sector)
+X		return(0);
+X
+X	start = ((sector - dir_start - dir_len) / clus_size) + 2;
+X	end = ((sector + disk_size - dir_start - dir_len) / clus_size) + 2;
+X
+X	for (i = start; i < end; i++) {
+X					/* if fat_decode returns non-zero */
+X		if (fat_decode(i))
+X			return(0);
+X	}
+X	return(1);
+X}
+SHAR_EOF
+if test 3057 -ne "`wc -c < 'buf_write.c'`"
+then
+	echo shar: "error transmitting 'buf_write.c'" '(should have been 3057 characters)'
+fi
+fi
+echo shar: "extracting 'devices.c'" '(2619 characters)'
+if test -f 'devices.c'
+then
+	echo shar: "will not over-write existing file 'devices.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'devices.c'
+X/*
+X * Device tables.  See the Configure file for a complete description.
+X */
+X
+X#include <stdio.h>
+X#include "msdos.h"
+X
+X#ifdef DELL
+Xstruct device devices[] = {
+X	{'A', "/dev/rdsk/f0d9dt", 0L, 12, 0, (int (*) ()) 0, 40, 2, 9},
+X	{'A', "/dev/rdsk/f0q15dt", 0L, 12, 0, (int (*) ()) 0, 80, 2, 15},
+X	{'A', "/dev/rdsk/f0d8dt", 0L, 12, 0, (int (*) ()) 0, 40, 2, 8},
+X	{'B', "/dev/rdsk/f13ht", 0L, 12, 0, (int (*) ()) 0, 80, 2, 18},
+X	{'B', "/dev/rdsk/f13dt", 0L, 12, 0, (int (*) ()) 0, 80, 2, 9},
+X	{'C', "/dev/rdsk/dos", 0L, 16, 0, (int (*) ()) 0, 0, 0, 0},
+X	{'\0', (char *) NULL, 0L, 0, 0, (int (*) ()) 0, 0, 0, 0}
+X};
+X#endif /* DELL */
+X
+X#ifdef ISC
+Xstruct device devices[] = {
+X	{'A', "/dev/rdsk/f0d9dt", 0L, 12, 0, (int (*) ()) 0, 40, 2, 9},
+X	{'A', "/dev/rdsk/f0q15dt", 0L, 12, 0, (int (*) ()) 0, 80, 2, 15},
+X	{'A', "/dev/rdsk/f0d8dt", 0L, 12, 0, (int (*) ()) 0, 40, 2, 8},
+X	{'B', "/dev/rdsk/f13ht", 0L, 12, 0, (int (*) ()) 0, 80, 2, 18},
+X	{'B', "/dev/rdsk/f13dt", 0L, 12, 0, (int (*) ()) 0, 80, 2, 9},
+X	{'C', "/dev/rdsk/0p1", 0L, 16, 0, (int (*) ()) 0, 0, 0, 0},
+X	{'D', "/usr/vpix/defaults/C:", 8704L, 12, 0, (int (*) ()) 0, 0, 0, 0},
+X	{'E', "$HOME/vpix/C:", 8704L, 12, 0, (int (*) ()) 0, 0, 0, 0},
+X	{'\0', (char *) NULL, 0L, 0, 0, (int (*) ()) 0, 0, 0, 0}
+X};
+X#endif /* ISC */
+X
+X#ifdef MASSCOMP
+Xstruct device devices[] = {
+X	{'A', "/dev/rflp", 0L, 12, 0, (int (*) ()) 0, 80, 2, 8},
+X	{'\0', (char *) NULL, 0L, 0, 0, (int (*) ()) 0, 0, 0, 0}
+X};
+X#endif /* MASSCOMP */
+X
+X#ifdef SPARC
+Xstruct device devices[] = {
+X	{'A', "/dev/rfd0c", 0L, 12, 0, (int (*) ()) 0, 80, 2, 18},
+X	{'A', "/dev/rfd0c", 0L, 12, 0, (int (*) ()) 0, 80, 2, 9},
+X	{'\0', (char *) NULL, 0L, 0, 0, (int (*) ()) 0, 0, 0, 0}
+X};
+X#endif /* SPARC */
+X
+X#ifdef UNIXPC
+X#include <sys/gdioctl.h>
+X#include <fcntl.h>
+X
+Xint init_unixpc();
+X
+Xstruct device devices[] = {
+X	{'A', "/dev/rfp020", 0L, 12, O_NDELAY, init_unixpc, 40, 2, 9},
+X	{'C', "/usr/bin/DOS/dvd000", 0L, 12, 0, (int (*) ()) 0, 0, 0, 0},
+X	{'\0', (char *) NULL, 0L, 0, 0, (int (*) ()) 0, 0, 0, 0}
+X};
+X
+Xint
+Xinit_unixpc(fd, ntracks, nheads, nsect)
+Xint fd, ntracks, nheads, nsect;
+X{
+X	struct gdctl gdbuf;
+X
+X	if (ioctl(fd, GDGETA, &gdbuf) == -1) {
+X		ioctl(fd, GDDISMNT, &gdbuf);
+X		return(1);
+X	}
+X
+X	gdbuf.params.cyls = ntracks * nheads;
+X	gdbuf.params.heads = nheads;
+X	gdbuf.params.psectrk = nsect;
+X
+X	gdbuf.params.pseccyl = gdbuf.params.psectrk * gdbuf.params.heads;
+X	gdbuf.params.flags = 1;		/* disk type flag */
+X	gdbuf.params.step = 0;		/* step rate for controller */
+X	gdbuf.params.sectorsz = 512;	/* sector size */
+X
+X	if (ioctl(fd, GDSETA, &gdbuf) < 0) {
+X		ioctl(fd, GDDISMNT, &gdbuf);
+X		return(1);
+X	}
+X	return(0);
+X}
+X#endif /* UNIXPC */
+SHAR_EOF
+if test 2619 -ne "`wc -c < 'devices.c'`"
+then
+	echo shar: "error transmitting 'devices.c'" '(should have been 2619 characters)'
+fi
+fi
+echo shar: "extracting 'dir_make.c'" '(2037 characters)'
+if test -f 'dir_make.c'
+then
+	echo shar: "will not over-write existing file 'dir_make.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'dir_make.c'
+X#include <stdio.h>
+X#include <time.h>
+X#include "msdos.h"
+X
+Xextern int dir_start, dir_len, clus_size, dir_entries, fat_error, clus_size;
+Xextern unsigned int num_clus, end_fat, last_fat;
+Xextern long dir_chain[MAX_DIR_SECS];
+Xextern unsigned char *dir_buf;
+X
+X/*
+X * Make a subdirectory grow in length.  Only subdirectories (not root)
+X * may grow.  Returns a 0 on success, 1 on failure (disk full), or -1
+X * on error.
+X */
+X
+Xint
+Xdir_grow(fat)
+Xunsigned int fat;
+X{
+X	int i, num, buflen, new;
+X	long sector;
+X	char *memset(), *realloc();
+X	unsigned char *offset, tbuf[MAX_CLUSTER];
+X	unsigned int next, last, next_fat(), fat_decode();
+X	void perror(), exit(), disk_write(), disk_read();
+X
+X	last = next_fat(0);
+X	if (last == 1)
+X		return(1);
+X
+X	/* CONSTCOND */
+X	while (1) {
+X		next = fat_decode(fat);
+X		if (next == 1) {
+X			fprintf(stderr, "dir_grow: FAT problem\n");
+X			fat_error++;
+X			return(-1);
+X		}
+X					/* end of cluster chain */
+X		if (next >= last_fat)
+X			break;
+X		fat = next;
+X	}
+X					/* mark the end of the chain */
+X	fat_encode(fat, last);
+X	fat_encode(last, end_fat);
+X					/* zero the buffer */
+X	buflen = clus_size * MSECTOR_SIZE;
+X	memset((char *) tbuf, '\0', buflen);
+X
+X					/* write the cluster */
+X	sector = (long) (last - 2) * clus_size + dir_start + dir_len;
+X	disk_write(sector, tbuf, buflen);
+X
+X					/* fix up the globals.... */
+X	num = dir_entries / 16;
+X	dir_entries += clus_size * 16;
+X	for (i = 0; i < clus_size; i++)
+X		dir_chain[num + i] = sector + i;
+X
+X					/* fix up dir_buf.... */
+X	new = num + clus_size;
+X	dir_buf = (unsigned char *) realloc((char *) dir_buf, (unsigned int) new * MSECTOR_SIZE);
+X	if (dir_buf == NULL) {
+X		perror("dir_grow: malloc");
+X		exit(1);
+X	}
+X	offset = dir_buf + (num * MSECTOR_SIZE);
+X	disk_read(dir_chain[num], offset, clus_size * MSECTOR_SIZE);
+X	return(0);
+X}
+X
+X/*
+X * Returns next free cluster or 1 if none are available.
+X */
+X
+Xunsigned int
+Xnext_fat(last)
+Xunsigned int last;
+X{
+X	register unsigned int i;
+X	unsigned int fat_decode();
+X
+X	for (i = last + 1; i < num_clus + 2; i++) {
+X		if (!fat_decode(i))
+X			return(i);
+X	}
+X	return(1);
+X}
+SHAR_EOF
+if test 2037 -ne "`wc -c < 'dir_make.c'`"
+then
+	echo shar: "error transmitting 'dir_make.c'" '(should have been 2037 characters)'
+fi
+fi
+echo shar: "extracting 'dir_read.c'" '(3300 characters)'
+if test -f 'dir_read.c'
+then
+	echo shar: "will not over-write existing file 'dir_read.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'dir_read.c'
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xlong dir_chain[MAX_DIR_SECS];		/* chain of sectors in directory */
+Xunsigned char *dir_buf;			/* the directory buffer */
+Xint dir_dirty;				/* is the buffer dirty? */
+X
+Xextern int dir_len, dir_start, clus_size, dir_entries, fat_error;
+Xextern unsigned int last_fat;
+X
+X/*
+X * Read a directory entry, return a pointer a static structure.
+X */
+X
+Xstruct directory *
+Xdir_read(num)
+Xint num;
+X{
+X	char *memcpy();
+X	unsigned char *offset;
+X	static struct directory dir;
+X
+X	offset = dir_buf + (num * MDIR_SIZE);
+X	memcpy((char *) &dir, (char *) offset, MDIR_SIZE);
+X	return(&dir);
+X}
+X
+X/*
+X * Fill in the global variable dir_chain[].  Argument is the starting
+X * cluster number.  Returns -1 on error.
+X */
+X
+Xint
+Xfill_chain(num)
+Xunsigned int num;
+X{
+X	register int i, length;
+X	unsigned int next, fat_decode();
+X	unsigned char *offset;
+X	char *malloc();
+X	void free(), perror(), exit(), disk_read(), dir_flush();
+X
+X	length = 0;
+X	/* CONSTCOND */
+X	while (1) {
+X		dir_chain[length] = (long) (num - 2) * clus_size + dir_start + dir_len;
+X		length++;
+X					/* sectors, not clusters! */
+X		for (i = 1; i < clus_size; i++) {
+X			dir_chain[length] = dir_chain[length - 1] + 1L;
+X			length++;
+X		}
+X
+X		if (length >= MAX_DIR_SECS) {
+X			fprintf(stderr, "fill_chain: directory too large\n");
+X			return(-1);
+X		}
+X					/* get next cluster number */
+X		next = fat_decode(num);
+X		if (next == 1) {
+X			fprintf(stderr, "fill_chain: FAT problem\n");
+X			fat_error++;
+X			return(-1);
+X		}
+X					/* end of cluster chain */
+X		if (next >= last_fat)
+X			break;
+X		num = next;
+X	}
+X	if (dir_dirty)
+X		dir_flush();
+X					/* fill the dir_buf */
+X	free((char *) dir_buf);
+X	dir_buf = (unsigned char *) malloc((unsigned int) length * MSECTOR_SIZE);
+X	if (dir_buf == NULL) {
+X		perror("fill_chain: malloc");
+X		exit(1);
+X	}
+X
+X	for (i = 0; i < length; i++) {
+X		offset = dir_buf + (i * MSECTOR_SIZE);
+X		disk_read(dir_chain[i], offset, MSECTOR_SIZE);
+X	}
+X
+X	dir_entries = length * 16;
+X	return(0);
+X}
+X
+X/*
+X * Reset the global variable dir_chain[] to the root directory.
+X */
+X
+Xvoid
+Xreset_chain(code)
+Xint code;
+X{
+X	register int i;
+X	char *malloc();
+X	void free(), disk_read(), dir_flush(), exit(), perror();
+X
+X	if (dir_dirty)
+X		dir_flush();
+X
+X	for (i = 0; i < dir_len; i++)
+X		dir_chain[i] = (long) dir_start + i;
+X
+X	if (code == OLD)
+X		free((char *) dir_buf);
+X
+X	dir_buf = (unsigned char *) malloc((unsigned int) dir_len * MSECTOR_SIZE);
+X	if (dir_buf == NULL) {
+X		perror("reset_chain: malloc");
+X		exit(1);
+X	}
+X	disk_read((long) dir_start, dir_buf, dir_len * MSECTOR_SIZE);
+X
+X	dir_entries = dir_len * 16;
+X	return;
+X}
+X
+X/*
+X * Get rid of spaces in an MSDOS 'raw' name (one that has come from the
+X * directory structure) so that it can be used for regular expression
+X * matching with a unix filename.  Also used to 'unfix' a name that has
+X * been altered by dos_name().  Returns a pointer a static buffer.
+X */
+X
+Xchar *
+Xunix_name(name, ext)
+Xunsigned char *name, *ext;
+X{
+X	char *s, tname[9], text[4], *strcpy(), *strcat(), *strchr();
+X	char *strncpy();
+X	static char ans[13];
+X
+X	strncpy(tname, (char *) name, 8);
+X	tname[8] = '\0';
+X	if (s = strchr(tname, ' '))
+X		*s = '\0';
+X
+X	strncpy(text, (char *) ext, 3);
+X	text[3] = '\0';
+X	if (s = strchr(text, ' '))
+X		*s = '\0';
+X
+X	if (*text) {
+X		strcpy(ans, tname);
+X		strcat(ans, ".");
+X		strcat(ans, text);
+X	}
+X	else
+X		strcpy(ans, tname);
+X	return(ans);
+X}
+SHAR_EOF
+if test 3300 -ne "`wc -c < 'dir_read.c'`"
+then
+	echo shar: "error transmitting 'dir_read.c'" '(should have been 3300 characters)'
+fi
+fi
+echo shar: "extracting 'dir_write.c'" '(4191 characters)'
+if test -f 'dir_write.c'
+then
+	echo shar: "will not over-write existing file 'dir_write.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'dir_write.c'
+X#include <stdio.h>
+X#include <time.h>
+X#include <ctype.h>
+X#include "msdos.h"
+X
+Xextern int fd, dir_dirty, clus_size, dir_entries;
+Xextern long dir_chain[MAX_DIR_SECS];
+Xextern unsigned char *dir_buf;
+X
+X/*
+X * Write a directory entry.  A simple cache is used instead of something
+X * more elaborate.
+X */
+X
+Xvoid
+Xdir_write(num, dir)
+Xint num;
+Xstruct directory *dir;
+X{
+X	unsigned char *offset;
+X	char *memcpy();
+X
+X	offset = dir_buf + (num * MDIR_SIZE);
+X	memcpy((char *) offset, (char *) dir, MDIR_SIZE);
+X	dir_dirty = 1;
+X	return;
+X}
+X
+X/*
+X * Write a partially filled directory buffer to disk.  Resets dir_dirty to
+X * zero.
+X */
+X
+Xvoid
+Xdir_flush()
+X{
+X	int i, length;
+X	unsigned char *offset;
+X	void disk_write();
+X
+X	if (fd < 0 || !dir_dirty)
+X		return;
+X
+X	length = dir_entries / 16;
+X	for (i = 0; i < length; i++) {
+X		offset = dir_buf + (i * MSECTOR_SIZE);
+X		disk_write(dir_chain[i], offset, MSECTOR_SIZE);
+X	}
+X	dir_dirty = 0;
+X	return;
+X}
+X
+X/*
+X * Convert a Unix filename to a legal MSDOS name.  Returns a pointer to
+X * a static area.  Will truncate file and extension names, will
+X * substitute the letter 'X' for any illegal character in the name.
+X */
+X
+Xunsigned char *
+Xdos_name(filename, verbose)
+Xchar *filename;
+Xint verbose;
+X{
+X	static char *dev[9] = {"CON", "AUX", "COM1", "COM2", "PRN", "LPT1",
+X	"LPT2", "LPT3", "NUL"};
+X	char *s, buf[MAX_PATH], *name, *ext, *strcpy(), *strpbrk(), *strrchr();
+X	static unsigned char ans[13];
+X	int dot, modified, len;
+X	register int i;
+X
+X	strcpy(buf, filename);
+X	name = buf;
+X					/* skip drive letter */
+X	if (buf[0] && buf[1] == ':')
+X		name = &buf[2];
+X					/* zap the leading path */
+X	if (s = strrchr(name, '/'))
+X		name = s + 1;
+X	if (s = strrchr(name, '\\'))
+X		name = s + 1;
+X
+X	ext = "";
+X	dot = 0;
+X	len = strlen(name);
+X	for (i = 0; i < len; i++) {
+X		s = name + len -i -1;
+X		if (*s == '.' && !dot) {
+X			dot = 1;
+X			*s = '\0';
+X			ext = s +1;
+X		}
+X		if (islower(*s))
+X			*s = toupper(*s);
+X	}
+X	if (*name == '\0') {
+X		name = "X";
+X		if (verbose)
+X			printf("\"%s\" Null name component, using \"%s.%s\"\n", filename, name, ext);
+X	}
+X	for (i = 0; i < 9; i++) {
+X		if (!strcmp(name, dev[i])) {
+X			*name = 'X';
+X			if (verbose)
+X				printf("\"%s\" Is a device name, using \"%s.%s\"\n", filename, name, ext);
+X		}
+X	}
+X	if (strlen(name) > 8) {
+X		*(name + 8) = '\0';
+X		if (verbose)
+X			printf("\"%s\" Name too long, using, \"%s.%s\"\n", filename, name, ext);
+X	}
+X	if (strlen(ext) > 3) {
+X		*(ext + 3) = '\0';
+X		if (verbose)
+X			printf("\"%s\" Extension too long, using \"%s.%s\"\n", filename, name, ext);
+X	}
+X	modified = 0;
+X	while (s = strpbrk(name, "^+=/[]:',?*\\<>|\". ")) {
+X		modified++;
+X		*s = 'X';
+X	}
+X	while (s = strpbrk(ext, "^+=/[]:',?*\\<>|\". ")) {
+X		modified++;
+X		*s = 'X';
+X	}
+X	if (modified && verbose)
+X		printf("\"%s\" Contains illegal character(s), using \"%s.%s\"\n", filename, name, ext);
+X
+X	sprintf((char *) ans, "%-8.8s%-3.3s", name, ext);
+X	return(ans);
+X}
+X
+X/*
+X * Make a directory entry.  Builds a directory entry based on the
+X * name, attribute, starting cluster number, and size.  Returns a pointer
+X * to a static directory structure.
+X */
+X
+Xstruct directory *
+Xmk_entry(filename, attr, fat, size, date)
+Xunsigned char *filename;
+Xunsigned char attr;
+Xunsigned int fat;
+Xlong size, date;
+X{
+X	int i;
+X	char *strncpy();
+X	static struct directory ndir;
+X	struct tm *now, *localtime();
+X	unsigned char hour, min_hi, min_low, sec;
+X	unsigned char year, month_hi, month_low, day;
+X
+X	now = localtime(&date);
+X	strncpy((char *) ndir.name, (char *) filename, 8);
+X	strncpy((char *) ndir.ext, (char *) filename + 8, 3);
+X	ndir.attr = attr;
+X	for (i = 0; i < 10; i++)
+X		ndir.reserved[i] = '\0';
+X	hour = now->tm_hour << 3;
+X	min_hi = now->tm_min >> 3;
+X	min_low = now->tm_min << 5;
+X	sec = now->tm_sec / 2;
+X	ndir.time[1] = hour + min_hi;
+X	ndir.time[0] = min_low + sec;
+X	year = (now->tm_year - 80) << 1;
+X	month_hi = (now->tm_mon + 1) >> 3;
+X	month_low = (now->tm_mon + 1) << 5;
+X	day = now->tm_mday;
+X	ndir.date[1] = year + month_hi;
+X	ndir.date[0] = month_low + day;
+X	ndir.start[1] = fat / 0x100;
+X	ndir.start[0] = fat % 0x100;
+X	ndir.size[3] = size / 0x1000000L;
+X	ndir.size[2] = (size % 0x1000000L) / 0x10000L;
+X	ndir.size[1] = ((size % 0x1000000L) % 0x10000L) / 0x100;
+X	ndir.size[0] = ((size % 0x1000000L) % 0x10000L) % 0x100;
+X	return(&ndir);
+X}
+SHAR_EOF
+if test 4191 -ne "`wc -c < 'dir_write.c'`"
+then
+	echo shar: "error transmitting 'dir_write.c'" '(should have been 4191 characters)'
+fi
+fi
+echo shar: "extracting 'expand.c'" '(1738 characters)'
+if test -f 'expand.c'
+then
+	echo shar: "will not over-write existing file 'expand.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'expand.c'
+X/*
+X * Do filename expansion with the shell.  Returns a pointer to a
+X * static area.
+X */
+X
+X#define EXPAND_BUF	2048
+X
+X#include <stdio.h>
+X
+Xchar *
+Xexpand(input)
+Xchar *input;
+X{
+X	FILE *fp, *popen();
+X	int last;
+X	char buf[256], *strpbrk(), *strcpy();
+X	static char ans[EXPAND_BUF];
+X
+X	if (input == NULL)
+X		return(NULL);
+X	if (*input == '\0')
+X		return("");
+X					/* any thing to expand? */
+X	if (!strpbrk(input, "$*{}[]\\?~")) {
+X		strcpy(ans, input);
+X		return(ans);
+X	}
+X					/* popen an echo */
+X	sprintf(buf, "echo %s", input);
+X
+X	fp = popen(buf, "r");
+X	fgets(ans, EXPAND_BUF, fp);
+X	pclose(fp);
+X
+X	if (!strlen(ans)) {
+X		strcpy(ans, input);
+X		return(ans);
+X	}
+X
+X	/*
+X	 * A horrible kludge...  if the last character is not a line feed,
+X	 * then the csh has returned an error message.  Otherwise zap the
+X	 * line feed.
+X	 */
+X	last = strlen(ans) - 1;
+X	if (ans[last] != '\n') {
+X		strcpy(ans, input);
+X		return(ans);
+X	}
+X	else
+X		ans[last] = '\0';
+X
+X	return(ans);
+X}
+X
+X/*
+X * Miscellaneous routines probably missing from Bezerkely
+X */
+X
+X#ifdef BSD
+X/*
+X * Return ptr to first occurrence of any character from `brkset'
+X * in the character string `string'; NULL if none exists.
+X */
+X
+Xchar *
+Xstrpbrk(string, brkset)
+Xregister char *string, *brkset;
+X{
+X	register char *p;
+X
+X	if (!string || !brkset)
+X		return(0);
+X	do {
+X		for (p = brkset; *p != '\0' && *p != *string; ++p)
+X			;
+X		if (*p != '\0')
+X			return(string);
+X	}
+X	while (*string++);
+X	return(0);
+X}
+X
+X/*
+X * Copies the character c, n times to string s
+X */
+X
+Xchar *
+Xmemset(s, c, n)
+Xchar *s, c;
+Xint n;
+X{
+X	char *s1 = s;
+X
+X	while (n > 0) {
+X		--n;
+X		*s++ = c;
+X	}
+X	return(s1);
+X}
+X
+X/*
+X * Copy contents of memory (with possible overlapping).
+X */
+X
+Xchar *
+Xmemcpy(s1, s2, n)
+Xchar *s1, *s2;
+Xint n;
+X{
+X	bcopy(s2, s1, n);
+X	return(s1);
+X}
+X#endif /* BSD */
+SHAR_EOF
+if test 1738 -ne "`wc -c < 'expand.c'`"
+then
+	echo shar: "error transmitting 'expand.c'" '(should have been 1738 characters)'
+fi
+fi
+echo shar: "extracting 'fat_free.c'" '(728 characters)'
+if test -f 'fat_free.c'
+then
+	echo shar: "will not over-write existing file 'fat_free.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'fat_free.c'
+X#include <stdio.h>
+X#include "msdos.h"
+X
+Xextern int fat_error;
+Xextern unsigned int last_fat;
+X
+X/*
+X * Remove a string of FAT entries (delete the file).  The argument is
+X * the beginning of the string.  Does not consider the file length, so
+X * if FAT is corrupted, watch out!
+X */
+X
+Xint
+Xfat_free(fat)
+Xunsigned int fat;
+X{
+X	unsigned int next, fat_decode();
+X					/* a zero length file? */
+X	if (fat == 0)
+X		return(0);
+X
+X	/* CONSTCOND */
+X	while (1) {
+X					/* get next cluster number */
+X		next = fat_decode(fat);
+X					/* mark current cluster as empty */
+X		if (fat_encode(fat, 0) || next == 1) {
+X			fprintf(stderr, "fat_free: FAT problem\n");
+X			fat_error++;
+X			return(-1);
+X		}
+X		if (next >= last_fat)
+X			break;
+X		fat = next;
+X	}
+X	return(0);
+X}
+SHAR_EOF
+if test 728 -ne "`wc -c < 'fat_free.c'`"
+then
+	echo shar: "error transmitting 'fat_free.c'" '(should have been 728 characters)'
+fi
+fi
+exit 0
+#	End of shell archive

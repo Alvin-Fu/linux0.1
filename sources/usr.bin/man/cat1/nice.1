@@ -1,0 +1,66 @@
+
+
+
+NICE(1L)          MISC. REFERENCE MANUAL PAGES           NICE(1L)
+
+
+
+NAME
+     nice - run a program with modified scheduling priority
+
+SYNOPSIS
+     nice [-n adjustment] [-adjustment] [--adjustment=adjustment]
+     [command [arg...]]
+
+DESCRIPTION
+     This manual page documents the GNU version of nice.   If  no
+     arguments  are  given,  nice  prints  the  current sheduling
+     priority, which it  inherited.   Otherwise,  nice  runs  the
+     given  _c_o_m_m_a_n_d with its scheduling priority adjusted.  If no
+     _a_d_j_u_s_t_m_e_n_t is given, the priority of the command  is  incre-
+     mented  by 10.  The superuser can specify a negative adjust-
+     ment.  The priority can be adjusted by nice over  the  range
+     of -20 (the highest priority) to 19 (the lowest).
+
+  OPTIONS
+     -_n _a_d_j_u_s_t_m_e_n_t, -_a_d_j_u_s_t_m_e_n_t, --_a_d_j_u_s_t_m_e_n_t=_a_d_j_u_s_t_m_e_n_t
+          Add _a_d_j_u_s_t_m_e_n_t instead of 10 to the command's priority.
+
+     The long-named options can be introduced with `+' as well as
+     `--',  for compatibility with previous releases.  Eventually
+     support for `+' will be removed, because it is  incompatible
+     with the POSIX.2 standard.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

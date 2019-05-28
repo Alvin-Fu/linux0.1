@@ -1,0 +1,66 @@
+
+
+
+PATHCHK(1L)       MISC. REFERENCE MANUAL PAGES        PATHCHK(1L)
+
+
+
+NAME
+     pathchk - check whether pathnames are valid or portable
+
+SYNOPSIS
+     pathchk [-p] [--portability] path...
+
+DESCRIPTION
+     This manual page documents the GNU version of pathchk.   For
+     each  _p_a_t_h,  pathchk prints a message if any of these condi-
+     tions are false:
+     o+ all directories in _p_a_t_h have search (execute) permission
+     o+ the length of _p_a_t_h <= the filesystem's maximum path length
+     o+ the length of each directory in _p_a_t_h <=  the  filesystem's
+     maximum file name legnth
+
+     The exit status is:
+     0 if all path names passed all of the tests,
+     1 otherwise.
+
+  OPTIONS
+     -_p, --_p_o_r_t_a_b_i_l_i_t_y
+          Instead of performing length checks on  the  underlying
+          filesystem,  test  the  length  of the pathname and its
+          components against the POSIX.1 minimum limits for  por-
+          tability.   Also  check  that  the pathname contains no
+          characters not in the portable filename character set.
+
+     The long-named options can be introduced with `+' as well as
+     `--',  for compatibility with previous releases.  Eventually
+     support for `+' will be removed, because it is  incompatible
+     with the POSIX.2 standard.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Sun Release 4.1           Last change:                          1
+
+
+

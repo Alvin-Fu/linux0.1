@@ -1,0 +1,1329 @@
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create:
+#	Mattrib.out
+#	Mcd.out
+#	Mcopy.out
+#	Mdel.out
+#	Mdir.out
+#	Mformat.out
+#	Mkmanifest.out
+#	Mlabel.out
+#	Mmd.out
+#	Mrd.out
+#	Mread.out
+#	Mren.out
+#	Mtools.out
+#	Mtype.out
+#	Mwrite.out
+# This archive created: Mon Aug 26 09:54:30 1991
+export PATH; PATH=/bin:/usr/bin:$PATH
+echo shar: "extracting 'Mattrib.out'" '(1518 characters)'
+if test -f 'Mattrib.out'
+then
+	echo shar: "will not over-write existing file 'Mattrib.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mattrib.out'
+X
+X
+X
+X     MATTRIB(1)                   (local)                   MATTRIB(1)
+X
+X
+X
+X     NAME
+X          mattrib - change MSDOS file attribute flags
+X
+X     SYNOPSIS
+X          mattrib [ -a|+a ] [ -h|+h ] [ -r|+r ] [ -s|+s ] msdosfile
+X          [ msdosfiles... ]
+X
+X     DESCRIPTION
+X          Mattrib will add attribute flags to an MSDOS file (with the
+X          '+' operator) or remove attribute flags (with the '-'
+X          operator).
+X
+X          Mattrib will allow the following command line options:
+X
+X          a    Archive bit.  Used by some backup programs to indicate
+X               a new file.
+X
+X          r    Read-only bit.  Used to indicate a read-only file.
+X               Files with this bit set cannot be erased by DEL.
+X               However, mdel is more cunning.
+X
+X          s    System bit.  Used by MSDOS to indicate a operating
+X               system file.
+X
+X          h    Hidden bit.  Used to make files hidden from DIR.
+X               However, mdir is more cunning.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1)
+X
+X     BUGS
+X          Most versions of ATTRIB don't allow this many options.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1518 -ne "`wc -c < 'Mattrib.out'`"
+then
+	echo shar: "error transmitting 'Mattrib.out'" '(should have been 1518 characters)'
+fi
+fi
+echo shar: "extracting 'Mcd.out'" '(1159 characters)'
+if test -f 'Mcd.out'
+then
+	echo shar: "will not over-write existing file 'Mcd.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mcd.out'
+X
+X
+X
+X     MCD(1)                       (local)                       MCD(1)
+X
+X
+X
+X     NAME
+X          mcd - change MSDOS directory
+X
+X     SYNOPSIS
+X          mcd [ msdosdirectory ]
+X
+X     DESCRIPTION
+X          Without arguments, mcd will report the current device and
+X          working directory.  Otherwise, mcd changes the current
+X          device and current working directory relative to an MSDOS
+X          filesystem.
+X
+X          The environmental variable MCWD may be used to locate the
+X          file where the device and current working directory
+X          information is stored.  The default is '$HOME/.mcwd'.
+X          Information in this file is ignored if the file is more
+X          than 6 hours old.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the directory name to be enclosed in quotes to
+X          protect it from the shell.
+X
+X     SEE ALSO
+X          mdir(1)
+X
+X     BUGS
+X          MSDOS doesn't use CD to change to another device.
+X
+X          It may be wise to remove old .mcwd files at logout.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1159 -ne "`wc -c < 'Mcd.out'`"
+then
+	echo shar: "error transmitting 'Mcd.out'" '(should have been 1159 characters)'
+fi
+fi
+echo shar: "extracting 'Mcopy.out'" '(1982 characters)'
+if test -f 'Mcopy.out'
+then
+	echo shar: "will not over-write existing file 'Mcopy.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mcopy.out'
+X
+X
+X
+X     MCOPY(1)                     (local)                     MCOPY(1)
+X
+X
+X
+X     NAME
+X          mcopy - copy MSDOS files to/from Unix
+X
+X     SYNOPSIS
+X          mcopy [ -tnvm ] sourcefile targetfile
+X
+X          mcopy [ -tnvm ] sourcefile [ sourcefiles... ] targetdirectory
+X
+X     DESCRIPTION
+X          Mcopy copies the specified file to the named file, or copies
+X          multiple files to the named directory.  The source and target
+X          can be either Unix or MSDOS files.
+X
+X          The use of a drive letter designation on the MSDOS files,
+X          'a:' for example, determines the direction of the transfer.
+X          A missing drive designation implies a Unix file whose path
+X          starts in the current directory
+X
+X          Mcopy will allow the following command line options:
+X
+X          t    Text file transfer.  Mcopy will translate incoming
+X               carriage return/line feeds to line feeds.
+X
+X          n    No warning.  Mcopy will not warn the user when
+X               overwriting an existing file.
+X
+X          v    Verbose mode.
+X
+X          m    Preserve the file modification time.
+X
+X          If the target file already exists, and the -n option is not
+X          in effect, mcopy asks whether or not to overwrite the file.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1), mread(1), mwrite(1)
+X
+X     BUGS
+X          Unlike MSDOS, the destination directory may not be omitted.
+X
+X          The '+' operator (append) from MSDOS is not supported.
+X
+X          No other Mtools command requires the use of a drive letter
+X          designation on MSDOS files.
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1982 -ne "`wc -c < 'Mcopy.out'`"
+then
+	echo shar: "error transmitting 'Mcopy.out'" '(should have been 1982 characters)'
+fi
+fi
+echo shar: "extracting 'Mdel.out'" '(1082 characters)'
+if test -f 'Mdel.out'
+then
+	echo shar: "will not over-write existing file 'Mdel.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mdel.out'
+X
+X
+X
+X     MDEL(1)                      (local)                      MDEL(1)
+X
+X
+X
+X     NAME
+X          mdel - delete an MSDOS file
+X
+X     SYNOPSIS
+X          mdel [ -v ] msdosfile [ msdosfiles...  ]
+X
+X     DESCRIPTION
+X          Mdel deletes a file on an MSDOS filesystem.
+X
+X          Mdel will allow the following command line option:
+X
+X          v    Verbose mode.  Echo the filenames as they are
+X               processed.
+X
+X          Mdel will ask for verification prior to removing a read-only
+X          file.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1)
+X
+X     BUGS
+X          Allows multiple arguments, which does not follow the MSDOS
+X          convention.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1082 -ne "`wc -c < 'Mdel.out'`"
+then
+	echo shar: "error transmitting 'Mdel.out'" '(should have been 1082 characters)'
+fi
+fi
+echo shar: "extracting 'Mdir.out'" '(1241 characters)'
+if test -f 'Mdir.out'
+then
+	echo shar: "will not over-write existing file 'Mdir.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mdir.out'
+X
+X
+X
+X     MDIR(1)                      (local)                      MDIR(1)
+X
+X
+X
+X     NAME
+X          mdir - display an MSDOS directory
+X
+X     SYNOPSIS
+X          mdir [ -w ] msdosdirectory
+X
+X          mdir [ -w ] msdosfile [ msdosfiles...  ]
+X
+X     DESCRIPTION
+X          Mdir displays the contents of an MSDOS directory.
+X
+X          Mdir will allow the following command line option:
+X
+X          w    Wide output.  This option will print the filenames
+X               across the page without displaying the file size or
+X               creation date.
+X
+X          An error occurs if a component of the path is not a
+X          directory.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1)
+X
+X     BUGS
+X          Allows multiple arguments, which does not follow the MSDOS
+X          convention.
+X
+X          There is no /P (pause) option.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1241 -ne "`wc -c < 'Mdir.out'`"
+then
+	echo shar: "error transmitting 'Mdir.out'" '(should have been 1241 characters)'
+fi
+fi
+echo shar: "extracting 'Mformat.out'" '(1115 characters)'
+if test -f 'Mformat.out'
+then
+	echo shar: "will not over-write existing file 'Mformat.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mformat.out'
+X
+X
+X
+X     MFORMAT(1)                   (local)                   MFORMAT(1)
+X
+X
+X
+X     NAME
+X          mformat - add an MSDOS filesystem to a low-level formatted
+X          diskette.
+X
+X     SYNOPSIS
+X          mformat [ -t tracks ] [ -h heads ] [ -s sectors ] [ -l
+X          volume label ] drive:
+X
+X     DESCRIPTION
+X          Mformat adds a minimal MSDOS filesystem (boot sector, FAT,
+X          and root directory) to a diskette that has already been
+X          formatted by a Unix low-level format.
+X
+X          The follow options are supported:
+X
+X          t    The number of tracks (not cylinders).
+X
+X          h    The number of heads (sides).
+X
+X          s    The number of sectors per track.
+X
+X          l    An optional volume label.
+X
+X          To format a diskette at a density other than the default,
+X          you must supply (at least) those command line parameters
+X          that are different from the the default.
+X
+X     SEE ALSO
+X          mlabel(1)
+X
+X     BUGS
+X          Requires a low-level format utility from Unix.
+X
+X          Doesn't detect (or record) bad block information.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1115 -ne "`wc -c < 'Mformat.out'`"
+then
+	echo shar: "error transmitting 'Mformat.out'" '(should have been 1115 characters)'
+fi
+fi
+echo shar: "extracting 'Mkmanifest.out'" '(2179 characters)'
+if test -f 'Mkmanifest.out'
+then
+	echo shar: "will not over-write existing file 'Mkmanifest.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mkmanifest.out'
+X
+X
+X
+X     MKMANIFEST(1)                (local)                MKMANIFEST(1)
+X
+X
+X
+X     NAME
+X          mkmanifest - create a shell script to restore Unix filenames
+X
+X     SYNOPSIS
+X          mkmanifest [ files ]
+X
+X     DESCRIPTION
+X          Mkmanifest creates a shell script that will aid in the
+X          restoration of Unix filenames that got clobbered by the
+X          MSDOS filename restrictions.  MSDOS filenames are restricted
+X          to 8 character names, 3 character extensions, upper case
+X          only, no device names, and no illegal characters.
+X
+X          The mkmanifest program is compatible with the methods used
+X          in pcomm, arc, and mtools to change perfectly good Unix
+X          filenames to fit the MSDOS restrictions.
+X
+X     EXAMPLE
+X          I want to copy the following Unix files to a MSDOS diskette
+X          (using the mcopy command).
+X
+X               very_long_name
+X               2.many.dots
+X               illegal:
+X               good.c
+X               prn.dev
+X               Capital
+X
+X          Mcopy will convert the names to:
+X
+X               very_lon
+X               2xmany.dot
+X               illegalx
+X               good.c
+X               xprn.dev
+X               capital
+X
+X          The command:
+X
+X          mkmanifest very_long_name 2.many.dots illegal: good.c
+X          prn.dev Capital > manifest
+X
+X          would produce the following:
+X
+X               mv very_lon very_long_name
+X               mv 2xmany.dot 2.many.dots
+X               mv illegalx illegal:
+X               mv xprn.dev prn.dev
+X               mv capital Capital
+X
+X          Notice that "good.c" did not require any conversion, so it
+X          did not appear in the output.
+X
+X
+X
+X     Page 1
+X
+X
+X
+X
+X
+X
+X     MKMANIFEST(1)                (local)                MKMANIFEST(1)
+X
+X
+X
+X          Suppose I've copied these files from the diskette to another
+X          Unix system, and I now want the files back to their original
+X          names.  If the file "manifest" (the output captured above)
+X          was sent along with those files, it could be used to convert
+X          the filenames.
+X
+X     SEE ALSO
+X          arc(1), pcomm(1), mtools(1)
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 2
+X
+X
+X
+SHAR_EOF
+if test 2179 -ne "`wc -c < 'Mkmanifest.out'`"
+then
+	echo shar: "error transmitting 'Mkmanifest.out'" '(should have been 2179 characters)'
+fi
+fi
+echo shar: "extracting 'Mlabel.out'" '(871 characters)'
+if test -f 'Mlabel.out'
+then
+	echo shar: "will not over-write existing file 'Mlabel.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mlabel.out'
+X
+X
+X
+X     MLABEL(1)                    (local)                    MLABEL(1)
+X
+X
+X
+X     NAME
+X          mlabel - make an MSDOS volume label
+X
+X     SYNOPSIS
+X          mlabel [ -v ] drive:
+X
+X     DESCRIPTION
+X          Mlabel displays the current volume label, if present, and
+X          prompts the user for a new volume label.  To delete an
+X          existing volume label, press return at the prompt.
+X
+X          Mlabel will allow the following command line option:
+X
+X          v    Verbose mode.  Display the new volume label if the
+X               label supplied is invalid.
+X
+X          Reasonable care is taken to create a valid MSDOS volume
+X          label.  If an invalid label is specified, mlabel will change
+X          the label (and display the new label if the verbose mode is
+X          set).
+X
+X     SEE ALSO
+X          mformat(1)
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 871 -ne "`wc -c < 'Mlabel.out'`"
+then
+	echo shar: "error transmitting 'Mlabel.out'" '(should have been 871 characters)'
+fi
+fi
+echo shar: "extracting 'Mmd.out'" '(1317 characters)'
+if test -f 'Mmd.out'
+then
+	echo shar: "will not over-write existing file 'Mmd.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mmd.out'
+X
+X
+X
+X     MMD(1)                       (local)                       MMD(1)
+X
+X
+X
+X     NAME
+X          mmd - make an MSDOS subdirectory
+X
+X     SYNOPSIS
+X          mmd [ -v ] msdosdirectory [ msdosdirectories... ]
+X
+X     DESCRIPTION
+X          Mmd makes a new directory on an MSDOS filesystem.
+X
+X          Mmd will allow the following command line option:
+X
+X          v    Verbose mode.  Display the new directory name if the
+X               name supplied is invalid.
+X
+X          Reasonable care is taken to create a valid MSDOS directory
+X          name.  If an invalid name is specified, mmd will change the
+X          name (and display the new name if the verbose mode is set).
+X
+X          An error occurs if the directory already exists.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the directory name to be enclosed in quotes to
+X          protect it from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1), mrd(1)
+X
+X     BUGS
+X          Allows multiple arguments, which does not follow the MSDOS
+X          convention.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1317 -ne "`wc -c < 'Mmd.out'`"
+then
+	echo shar: "error transmitting 'Mmd.out'" '(should have been 1317 characters)'
+fi
+fi
+echo shar: "extracting 'Mrd.out'" '(938 characters)'
+if test -f 'Mrd.out'
+then
+	echo shar: "will not over-write existing file 'Mrd.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mrd.out'
+X
+X
+X
+X     MRD(1)                       (local)                       MRD(1)
+X
+X
+X
+X     NAME
+X          mrd - remove an MSDOS subdirectory
+X
+X     SYNOPSIS
+X          mrd msdosdirectory [ msdosdirectories... ]
+X
+X     DESCRIPTION
+X          Mrd removes a directory from an MSDOS filesystem.
+X
+X          An error occurs if the directory is not empty.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the directory name to be enclosed in quotes to
+X          protect it from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1), mmd(1)
+X
+X     BUGS
+X          Allows multiple arguments, which does not follow the MSDOS
+X          convention.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 938 -ne "`wc -c < 'Mrd.out'`"
+then
+	echo shar: "error transmitting 'Mrd.out'" '(should have been 938 characters)'
+fi
+fi
+echo shar: "extracting 'Mread.out'" '(1568 characters)'
+if test -f 'Mread.out'
+then
+	echo shar: "will not over-write existing file 'Mread.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mread.out'
+X
+X
+X
+X     MREAD(1)                     (local)                     MREAD(1)
+X
+X
+X
+X     NAME
+X          mread - low level read (copy) an MSDOS file to Unix
+X
+X     SYNOPSIS
+X          mread [ -tnm ] msdosfile unixfile
+X
+X          mread [ -tnm ] msdosfile [ msdosfiles... ] unixdirectory
+X
+X     DESCRIPTION
+X          In the first form, mread copies the specified MSDOS file to
+X          the named Unix file.  The second form of the command copies
+X          multiple MSDOS files to the named Unix directory.
+X
+X          Mread will allow the following command line options:
+X
+X          t    Text file transfer.  Mread will translate incoming
+X               carriage return/line feeds to line feeds.
+X
+X          n    No warning.  Mread will not warn the user when
+X               overwriting an existing file.
+X
+X          m    Preserve the file modification times.
+X
+X          If the target file already exists, and the -n option is not
+X          in effect, mread asks whether or not to overwrite the file.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1), mcopy(1), mtype(1), mwrite(1)
+X
+X     BUGS
+X          Unlike MSDOS, the destination directory may not be omitted.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1568 -ne "`wc -c < 'Mread.out'`"
+then
+	echo shar: "error transmitting 'Mread.out'" '(should have been 1568 characters)'
+fi
+fi
+echo shar: "extracting 'Mren.out'" '(1469 characters)'
+if test -f 'Mren.out'
+then
+	echo shar: "will not over-write existing file 'Mren.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mren.out'
+X
+X
+X
+X     MREN(1)                      (local)                      MREN(1)
+X
+X
+X
+X     NAME
+X          mren - rename an existing MSDOS file
+X
+X     SYNOPSIS
+X          mren [ -v ] sourcefile targetfile
+X
+X     DESCRIPTION
+X          Mren renames an existing file on an MSDOS filesystem.
+X
+X          Mren will allow the following command line option:
+X
+X          v    Verbose mode.  Display the new filename if the name
+X               supplied is invalid.
+X
+X          Reasonable care is taken to create a valid MSDOS filename.
+X          If an invalid MSDOS target name is specified, mren will
+X          change the name (and prompt the user to accept or reject the
+X          new name if the verbose mode is set).
+X
+X          The path component of the target filename (if supplied) is
+X          ignored.  In other words, you may not use mren to move a
+X          file from one subdirectory to another.
+X
+X          Mren may be used to rename directories.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1)
+X
+X     BUGS
+X          MSDOS can't use REN to rename directories.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1469 -ne "`wc -c < 'Mren.out'`"
+then
+	echo shar: "error transmitting 'Mren.out'" '(should have been 1469 characters)'
+fi
+fi
+echo shar: "extracting 'Mtools.out'" '(2634 characters)'
+if test -f 'Mtools.out'
+then
+	echo shar: "will not over-write existing file 'Mtools.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mtools.out'
+X
+X
+X
+X     MTOOLS(1)                    (local)                    MTOOLS(1)
+X
+X
+X
+X     NAME
+X          Mtools - a collection of tools for manipulating MSDOS files
+X
+X     SYNOPSIS
+X          mattrib - change MSDOS file attribute flags
+X          mcd - change MSDOS directory
+X          mcopy - copy MSDOS files to/from Unix
+X          mdel - delete an MSDOS file
+X          mdir - display an MSDOS directory
+X          mformat - add an MSDOS filesystem to a low-level formatted diskette
+X          mlabel - make an MSDOS volume label
+X          mmd - make an MSDOS subdirectory
+X          mrd - remove an MSDOS subdirectory
+X          mread - low level read (copy) an MSDOS file to Unix
+X          mren - rename an existing MSDOS file
+X          mtype - display contents of an MSDOS file
+X          mwrite - low level write (copy) a Unix file to MSDOS
+X
+X     DESCRIPTION
+X          Mtools is a public domain collection of programs to allow
+X          Unix systems to read, write, and manipulate files on an
+X          MSDOS filesystem (typically a diskette).  Each program
+X          attempts to emulate the MSDOS equivalent command as closely
+X          as practical.
+X
+X          MSDOS filenames are optionally composed of a drive letter
+X          followed by a colon, a subdirectory, and a filename.
+X          Subdirectory names can use either the '/' or '\' separator.
+X          The use of the '\' separator or wildcards will require the
+X          names to be enclosed in quotes to protect them from the
+X          shell.
+X
+X          The regular expression "pattern matching" routines follow
+X          the Unix-style rules.  For example, '*' matches all MSDOS
+X          files in lieu of '*.*'.  The archive, hidden, read-only and
+X          system attribute bits are ignored during pattern matching.
+X
+X          All options use the '-' (minus) flag, not '/' as you'd
+X          expect in MSDOS.
+X
+X          The mcd command is used to establish the device and the
+X          current working directory (relative to the MSDOS
+X          filesystem), otherwise the default is assumed to be A:/.
+X
+X     SEE ALSO
+X          mattrib(1), mcd(1), mdel(1), mformat(1), mrd(1), mren(1),
+X          mtype(1), mcopy(1), mdir(1), mlabel(1), mmd(1), mread(1),
+X          mwrite(1)
+X
+X     BUGS
+X          An unfortunate side effect of not guessing the proper device
+X          (when multiple disk capacities are supported) is an
+X
+X
+X
+X     Page 1
+X
+X
+X
+X
+X
+X
+X     MTOOLS(1)                    (local)                    MTOOLS(1)
+X
+X
+X
+X          occasional error message from the device driver.  These can
+X          be safely ignored.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 2
+X
+X
+X
+SHAR_EOF
+if test 2634 -ne "`wc -c < 'Mtools.out'`"
+then
+	echo shar: "error transmitting 'Mtools.out'" '(should have been 2634 characters)'
+fi
+fi
+echo shar: "extracting 'Mtype.out'" '(1160 characters)'
+if test -f 'Mtype.out'
+then
+	echo shar: "will not over-write existing file 'Mtype.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mtype.out'
+X
+X
+X
+X     MTYPE(1)                     (local)                     MTYPE(1)
+X
+X
+X
+X     NAME
+X          mtype - display contents of an MSDOS file
+X
+X     SYNOPSIS
+X          mtype [ -ts ] msdosfile [ msdosfiles... ]
+X
+X     DESCRIPTION
+X          Mtype displays the specified MSDOS file on the screen.
+X
+X          Mtype will allow the following command line options:
+X
+X          t    Text file viewing.  Mtype will translate incoming
+X               carriage return/line feeds to line feeds.
+X
+X          s    Strip high bit.  Mtype will strip the high bit from the
+X               data.
+X
+X          MSDOS subdirectory names are supported with either the '/'
+X          or '\' separator.  The use of the '\' separator or wildcards
+X          will require the names to be enclosed in quotes to protect
+X          them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1), mread(1)
+X
+X     BUGS
+X          Allows multiple arguments, which does not follow the MSDOS
+X          convention.
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1160 -ne "`wc -c < 'Mtype.out'`"
+then
+	echo shar: "error transmitting 'Mtype.out'" '(should have been 1160 characters)'
+fi
+fi
+echo shar: "extracting 'Mwrite.out'" '(1882 characters)'
+if test -f 'Mwrite.out'
+then
+	echo shar: "will not over-write existing file 'Mwrite.out'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Mwrite.out'
+X
+X
+X
+X     MWRITE(1)                    (local)                    MWRITE(1)
+X
+X
+X
+X     NAME
+X          mwrite - low level write (copy) a Unix file to MSDOS
+X
+X     SYNOPSIS
+X          mwrite [ -tnvm ] unixfile msdosfile
+X
+X          mwrite [ -tnvm ] unixfile [ unixfiles... ] msdosdirectory
+X
+X     DESCRIPTION
+X          In the first form, mwrite copies the specified Unix file to
+X          the named MSDOS file.  The second form of the command copies
+X          multiple Unix files to the named MSDOS directory.
+X
+X          Mwrite will allow the following command line options:
+X
+X          t    Text file transfer.  Mwrite will translate incoming
+X               line feeds to carriage return/line feeds.
+X
+X          n    No warning.  Mwrite will not warn the user when
+X               overwriting an existing file.
+X
+X          v    Verbose mode.  Display the new filename if the Unix
+X               filename requires conversion.
+X
+X          m    Preserve the file modification times.
+X
+X          If the target file already exists, and the -n option is not
+X          in effect, mwrite asks whether or not to overwrite the file.
+X
+X          Reasonable care is taken to create a valid MSDOS filename.
+X          If an invalid name is specified, mwrite will change the name
+X          (and display the new name if the verbose mode is set).
+X
+X          MSDOS subdirectory names are are supported with either the
+X          '/' or '\' separator.  The use of the '\' separator or
+X          wildcards will require the names to be enclosed in quotes to
+X          protect them from the shell.
+X
+X          The mcd command may be used to establish the device and the
+X          current working directory (relative to MSDOS), otherwise the
+X          default is A:/.
+X
+X     SEE ALSO
+X          mcd(1), mcopy(1), mread(1)
+X
+X     BUGS
+X          Unlike MSDOS, the destination directory may not be omitted.
+X
+X
+X
+X
+X
+X
+X
+X
+X     Page 1
+X
+X
+X
+SHAR_EOF
+if test 1882 -ne "`wc -c < 'Mwrite.out'`"
+then
+	echo shar: "error transmitting 'Mwrite.out'" '(should have been 1882 characters)'
+fi
+fi
+exit 0
+#	End of shell archive
