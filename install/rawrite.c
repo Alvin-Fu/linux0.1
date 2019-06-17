@@ -1,6 +1,5 @@
 /*
- rawrite.c	Write a binary image to a 360K diskette.
-		By Mark Becker
+ rawrite.c	Write a binary image to a 360K diskette. By Mark Becker
 
  Usage:
 	MS-DOS prompt> RAWRITE
@@ -58,6 +57,9 @@ void msg(char (*s))
 /*
  Identify the error code with a real error message.
 */
+/*
+    定义错误信息，非0为错误，有21种系统错误类型
+*/
 void Error(int (status))
 {
   switch (status) {
@@ -105,6 +107,9 @@ int nsects(int (drive))
  Read sector 1, head 0, track 0 to get the BIOS running.
 */
   buffer = (char *)malloc(SECTORSIZE);
+  //biosdisk用于设置磁盘
+  //int biosdisk(int cmd, int drive, int head, int track, int sector, int nsects, void *buffer)
+  //
   biosdisk(RESET, drive, 0, 0, 0, 0, buffer);
   status = biosdisk(READ, drive, 0, 10, 1, 1, buffer);
   if (status == 0x06)			/* Door signal change?	*/
