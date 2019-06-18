@@ -109,7 +109,7 @@ int nsects(int (drive))
   buffer = (char *)malloc(SECTORSIZE);
   //biosdisk用于设置磁盘
   //int biosdisk(int cmd, int drive, int head, int track, int sector, int nsects, void *buffer)
-  //
+  //cmd 代表指令
   biosdisk(RESET, drive, 0, 0, 0, 0, buffer);
   status = biosdisk(READ, drive, 0, 10, 1, 1, buffer);
   if (status == 0x06)			/* Door signal change?	*/
@@ -139,7 +139,7 @@ void main(void)
   ctrlbrk(handler);
   printf("Enter source file name: ");
   scanf("%s", fname);
-  _fmode = O_BINARY;
+  _fmode = O_BINARY;//二进制
   if ((fdin = open(fname, O_RDONLY)) <= 0) {
      perror(fname);
      exit(1);

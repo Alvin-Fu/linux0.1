@@ -19,7 +19,7 @@
  */
 
 #include <stdarg.h>
- 
+
 #include <linux/config.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -32,7 +32,7 @@ struct buffer_head * hash_table[NR_HASH];
 static struct buffer_head * free_list;
 static struct task_struct * buffer_wait = NULL;
 int NR_BUFFERS = 0;
-
+//¾²Ì¬ÄÚÁªº¯Êý
 static inline void wait_on_buffer(struct buffer_head * bh)
 {
 	cli();
@@ -158,7 +158,7 @@ static inline void insert_into_queues(struct buffer_head * bh)
 }
 
 static struct buffer_head * find_buffer(int dev, int block)
-{		
+{
 	struct buffer_head * tmp;
 
 	for (tmp = hash(dev,block) ; tmp != NULL ; tmp = tmp->b_next)
@@ -338,4 +338,4 @@ void buffer_init(long buffer_end)
 	h->b_next_free = free_list;
 	for (i=0;i<NR_HASH;i++)
 		hash_table[i]=NULL;
-}	
+}

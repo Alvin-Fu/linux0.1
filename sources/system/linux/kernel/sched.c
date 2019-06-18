@@ -100,7 +100,9 @@ void math_state_restore()
  *   NOTE!!  Task 0 is the 'idle' task, which gets called when no other
  * tasks can run. It can not be killed, and it cannot sleep. The 'state'
  * information in task[0] is never used.
+ *调度器函数
  */
+
 void schedule(void)
 {
 	int i,next,c;
@@ -158,6 +160,8 @@ void sleep_on(struct task_struct **p)
 		panic("task[0] trying to sleep");
 	tmp = *p;
 	*p = current;
+	//TASK_UNINTERRUPTIBLE只能被weak_up()唤醒
+	//TASK_INTERRUPTIBLE可以被信号和weak_up()唤醒
 	current->state = TASK_UNINTERRUPTIBLE;
 	schedule();
 	if (tmp)
@@ -320,7 +324,7 @@ void do_timer(long cpl)
 		next_timer->jiffies--;
 		while (next_timer && next_timer->jiffies <= 0) {
 			void (*fn)(void);
-			
+
 			fn = next_timer->fn;
 			next_timer->fn = NULL;
 			next_timer = next_timer->next;
